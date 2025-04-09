@@ -1,6 +1,10 @@
 import { Button } from '@/components/ui/button';
 import { AIAssistant } from '../../../components/AIAssistant';
 import Link from 'next/link';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Mock data for problems (would come from API in a real app)
 const mockProblems = [
@@ -109,170 +113,104 @@ export default function SolveProblemPage({ params }: { params: { id: string } })
   }
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex justify-between items-center">
+    <div className="container mx-auto px-4 py-8 h-[calc(100vh-theme_header_height)] flex flex-col">
+      <div className="mb-4 flex justify-between items-center flex-shrink-0">
         <Link href={`/problems/${problem.id}`} className="text-blue-600 hover:underline flex items-center gap-1">
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="16" 
-            height="16" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
             <path d="m15 18-6-6 6-6"/>
           </svg>
           Back to Problem
         </Link>
-        <Button variant="outline" size="sm">Save Progress</Button>
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm mb-6">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold">{problem.title}</h2>
-                <CategoryBadge category={problem.category} />
-                <DifficultyBadge level={problem.difficulty} />
-              </div>
-            </div>
-            <div className="p-4 h-32 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-              <p className="text-gray-500">Problem description minimized. <Button variant="ghost" size="sm">Expand</Button></p>
-            </div>
+        <div className="text-center">
+          <h1 className="text-xl font-semibold">{problem.title}</h1>
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <CategoryBadge category={problem.category} />
+            <DifficultyBadge level={problem.difficulty} />
           </div>
-          
-          <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm mb-6">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-              <h2 className="text-lg font-semibold">Your Solution</h2>
-            </div>
-            <div className="p-4">
-              <textarea 
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 min-h-[400px]"
-                placeholder="Start writing your solution here..."
-              ></textarea>
-            </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center">
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="16" 
-                    height="16" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                    className="mr-1"
-                  >
-                    <path d="M12 5v14"/>
-                    <path d="M5 12h14"/>
-                  </svg>
-                  Add Attachment
-                </Button>
-                <Button variant="outline" size="sm">
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="16" 
-                    height="16" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                    className="mr-1"
-                  >
-                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
-                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
-                  </svg>
-                  Save Draft
-                </Button>
+        </div>
+        <div className="flex gap-2">
+           <Button variant="outline" size="sm">Save Progress</Button>
+           <Button size="sm">Compile Solution</Button>
+        </div>
+      </div>
+
+      <div className="flex-grow flex gap-8 overflow-hidden">
+        <div className="flex-grow flex flex-col border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm bg-white dark:bg-gray-950 overflow-hidden">
+           <div className="p-3 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
+             <h2 className="text-lg font-semibold text-center">AI Assistant Chat</h2>
+           </div>
+
+          <ScrollArea className="flex-grow p-4 space-y-4">
+            <div className="flex justify-start">
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 max-w-[75%]">
+                <p className="text-sm">I'm your AI problem-solving assistant. How can I assist you with "{problem.title}"?</p>
               </div>
-              <Button>Submit Solution</Button>
+            </div>
+            <div className="flex justify-end">
+              <div className="bg-blue-500 text-white rounded-lg p-3 max-w-[75%]">
+                <p className="text-sm">Okay, let's start by outlining the main challenges.</p>
+              </div>
+            </div>
+             <div className="flex justify-start">
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 max-w-[75%]">
+                <p className="text-sm">Great idea. The main challenges are maintaining efficiency in extreme temperatures, thermal management, durability, and cost-effectiveness. Which one should we tackle first?</p>
+              </div>
+            </div>
+          </ScrollArea>
+
+          <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="Ask the AI assistant for guidance..."
+                className="flex-grow resize-none"
+                rows={1}
+              />
+              <Button>Send</Button>
             </div>
           </div>
         </div>
-        
-        <div className="lg:col-span-1">
-          <div className="sticky top-4 space-y-6">
-            <AIAssistant problemId={problem.id} problemTitle={problem.title} />
-            
-            <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm p-6">
-              <h3 className="font-medium mb-3">Resources</h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="16" 
-                    height="16" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                    className="text-blue-600"
-                  >
-                    <path d="M12 9v4"/>
-                    <path d="M12 17h.01"/>
-                    <circle cx="12" cy="12" r="10"/>
-                  </svg>
-                  <a href="#" className="text-blue-600 hover:underline">Problem Guidelines</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="16" 
-                    height="16" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                    className="text-blue-600"
-                  >
-                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                  </svg>
-                  <a href="#" className="text-blue-600 hover:underline">Reference Materials</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    width="16" 
-                    height="16" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                    className="text-blue-600"
-                  >
-                    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                  </svg>
-                  <a href="#" className="text-blue-600 hover:underline">Submission Format</a>
-                </li>
-              </ul>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm p-6">
-              <h3 className="font-medium mb-3">Similar Solutions</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                You can view other users' solutions after submitting your own.
-              </p>
-              <Button variant="outline" size="sm" className="w-full">
-                View Community Solutions
-              </Button>
-            </div>
-          </div>
+
+        <div className="w-1/3 lg:w-1/4 flex-shrink-0 flex flex-col gap-6 overflow-y-auto">
+           <Card>
+             <CardHeader>
+               <CardTitle className="text-lg">Problem Description</CardTitle>
+             </CardHeader>
+             <CardContent>
+                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-4">
+                  {problem.description}
+                </p>
+                 <Button variant="link" size="sm" className="p-0 h-auto mt-1">Show full description</Button>
+             </CardContent>
+           </Card>
+
+           <Card className="flex-grow flex flex-col">
+             <CardHeader>
+               <CardTitle className="text-lg">Key Points</CardTitle>
+               <CardDescription>Important notes from your chat.</CardDescription>
+             </CardHeader>
+             <CardContent className="flex-grow overflow-y-auto">
+               <ScrollArea className="h-full pr-3">
+                 <ul className="space-y-2 text-sm">
+                   <li className="border-b pb-1 mb-1 dark:border-gray-700">Challenge 1: Maintain 85% efficiency (-40°C to +60°C).</li>
+                   <li className="border-b pb-1 mb-1 dark:border-gray-700">Idea: Passive thermal management focus.</li>
+                   <li>Constraint: Use commercially available tech.</li>
+                 </ul>
+               </ScrollArea>
+             </CardContent>
+             <CardFooter>
+                <Button variant="outline" size="sm" className="w-full">Add Key Point Manually</Button>
+             </CardFooter>
+           </Card>
         </div>
       </div>
     </div>
