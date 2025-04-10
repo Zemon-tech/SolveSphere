@@ -1,3 +1,5 @@
+"use client"
+
 import { Button } from '@/components/ui/button';
 import { AIAssistant } from '../../../components/AIAssistant';
 import Link from 'next/link';
@@ -5,6 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ChevronLeft, Plus, Code, Save } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 
 // Mock data for problems (would come from API in a real app)
 const mockProblems = [
@@ -96,9 +101,45 @@ function CategoryBadge({ category }: { category: string }) {
   );
 }
 
-export default function SolveProblemPage({ params }: { params: { id: string } }) {
+export default function SolveProblemPage() {
+  // Get params using useParams hook
+  const params = useParams();
+  const id = params.id as string;
+  
   // In a real app, this would fetch data from an API
-  const problem = mockProblems.find(p => p.id === params.id);
+  const problem = mockProblems.find(p => p.id === id);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  // Hide the nav and footer using CSS
+  useEffect(() => {
+    // Add a class to the body to hide nav and footer
+    document.body.classList.add('solve-page');
+    
+    // Add the CSS to the document if it doesn't exist
+    if (!document.getElementById('solve-page-styles')) {
+      const style = document.createElement('style');
+      style.id = 'solve-page-styles';
+      style.innerHTML = `
+        body.solve-page {
+          overflow: hidden;
+          height: 100vh;
+        }
+        body.solve-page header,
+        body.solve-page footer,
+        body.solve-page nav {
+          display: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    return () => {
+      // Clean up
+      document.body.classList.remove('solve-page');
+      const style = document.getElementById('solve-page-styles');
+      if (style) style.remove();
+    };
+  }, []);
   
   if (!problem) {
     return (
@@ -113,104 +154,100 @@ export default function SolveProblemPage({ params }: { params: { id: string } })
   }
   
   return (
-    <div className="container mx-auto px-4 py-8 h-[calc(100vh-theme_header_height)] flex flex-col">
-      <div className="mb-4 flex justify-between items-center flex-shrink-0">
-        <Link href={`/problems/${problem.id}`} className="text-blue-600 hover:underline flex items-center gap-1">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+    <div className="fixed inset-0 z-50 bg-gray-950 text-white overflow-hidden flex flex-col">
+      {/* Title Bar with Toggle and Back Link */}
+      <div className="border-b border-gray-800 p-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="text-gray-400 hover:text-white transition-colors"
           >
-            <path d="m15 18-6-6 6-6"/>
-          </svg>
-          Back to Problem
-        </Link>
-        <div className="text-center">
+            <ChevronLeft size={16} className={sidebarOpen ? "" : "rotate-180"} />
+          </Button>
           <h1 className="text-xl font-semibold">{problem.title}</h1>
-          <div className="flex items-center justify-center gap-2 mt-1">
-            <CategoryBadge category={problem.category} />
-            <DifficultyBadge level={problem.difficulty} />
+        </div>
+        <Link href={`/problems/${problem.id}`} className="text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+          <ChevronLeft size={16} />
+          <span>Back to Problem</span>
+        </Link>
+      </div>
+      
+      {/* Main Content Area - Not Scrollable (fixed height) */}
+      <div className="flex flex-1 overflow-hidden h-full">
+        {/* Left: Collapsible Key Points Sidebar */}
+        <div className={`bg-gray-900 border-r border-gray-700/50 overflow-hidden flex flex-col transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-80' : 'w-0'}`}>
+          <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+            <h2 className="text-lg font-semibold">Key Points</h2>
+          </div>
+          
+          {/* Key Points List - Not Scrollable */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <ul className="space-y-3">
+              <li className="p-3 rounded-lg bg-gray-800/70 border border-gray-700/50 shadow-sm">
+                Challenge 1: Maintain 85% efficiency (-40°C to +60°C).
+              </li>
+              <li className="p-3 rounded-lg bg-gray-800/70 border border-gray-700/50 shadow-sm">
+                Idea: Passive thermal management focus.
+              </li>
+              <li className="p-3 rounded-lg bg-gray-800/70 border border-gray-700/50 shadow-sm">
+                Constraint: Use commercially available tech.
+              </li>
+            </ul>
+          </div>
+          
+          <div className="p-4 border-t border-gray-800 flex flex-col gap-2">
+            <Button variant="outline" size="sm" className="w-full gap-1 border-gray-700 hover:border-gray-600 transition-colors">
+              <Plus size={14} /> Add Key Point
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="flex-1 gap-1 border-gray-700 hover:border-gray-600 transition-colors">
+                <Code size={14} /> Compile Solution
+              </Button>
+              <Button variant="outline" size="sm" className="flex-1 gap-1 border-gray-700 hover:border-gray-600 transition-colors">
+                <Save size={14} /> Save Progress
+              </Button>
+            </div>
           </div>
         </div>
-        <div className="flex gap-2">
-           <Button variant="outline" size="sm">Save Progress</Button>
-           <Button size="sm">Compile Solution</Button>
-        </div>
-      </div>
-
-      <div className="flex-grow flex gap-8 overflow-hidden">
-        <div className="flex-grow flex flex-col border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm bg-white dark:bg-gray-950 overflow-hidden">
-           <div className="p-3 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
-             <h2 className="text-lg font-semibold text-center">AI Assistant Chat</h2>
-           </div>
-
-          <ScrollArea className="flex-grow p-4 space-y-4">
-            <div className="flex justify-start">
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 max-w-[75%]">
-                <p className="text-sm">I'm your AI problem-solving assistant. How can I assist you with "{problem.title}"?</p>
+        
+        {/* Right: Chat Area */}
+        <div className="flex-1 flex flex-col h-full bg-gray-950">
+          {/* Scrollable Message Area - The ONLY scrollable part */}
+          <ScrollArea className="flex-1 p-6">
+            <div className="space-y-6 max-w-4xl mx-auto">
+              <div className="flex justify-start">
+                <div className="bg-gray-800/70 rounded-lg p-4 max-w-[80%] shadow-sm">
+                  <p>I'm your AI problem-solving assistant. How can I assist you with "{problem.title}"?</p>
+                </div>
               </div>
-            </div>
-            <div className="flex justify-end">
-              <div className="bg-blue-500 text-white rounded-lg p-3 max-w-[75%]">
-                <p className="text-sm">Okay, let's start by outlining the main challenges.</p>
+              
+              <div className="flex justify-end">
+                <div className="bg-blue-900/80 text-white rounded-lg p-4 max-w-[80%] shadow-sm">
+                  <p>Okay, let's start by outlining the main challenges.</p>
+                </div>
               </div>
-            </div>
-             <div className="flex justify-start">
-              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 max-w-[75%]">
-                <p className="text-sm">Great idea. The main challenges are maintaining efficiency in extreme temperatures, thermal management, durability, and cost-effectiveness. Which one should we tackle first?</p>
+              
+              <div className="flex justify-start">
+                <div className="bg-gray-800/70 rounded-lg p-4 max-w-[80%] shadow-sm">
+                  <p>Great idea. The main challenges are maintaining efficiency in extreme temperatures, thermal management, durability, and cost-effectiveness. Which one should we tackle first?</p>
+                </div>
               </div>
             </div>
           </ScrollArea>
-
-          <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex-shrink-0">
-            <div className="flex gap-2">
+          
+          {/* Fixed Input Area */}
+          <div className="p-4 border-t border-gray-800/70 bg-gray-900/50 backdrop-blur-sm">
+            <div className="max-w-4xl mx-auto flex gap-2">
               <Textarea
                 placeholder="Ask the AI assistant for guidance..."
-                className="flex-grow resize-none"
-                rows={1}
+                className="flex-grow resize-none bg-gray-800/80 border-gray-700/50 focus:border-blue-500/70 rounded-lg transition-colors shadow-sm"
+                rows={2}
               />
-              <Button>Send</Button>
+              <Button className="bg-blue-600 hover:bg-blue-700 transition-colors h-auto">Send</Button>
             </div>
           </div>
-        </div>
-
-        <div className="w-1/3 lg:w-1/4 flex-shrink-0 flex flex-col gap-6 overflow-y-auto">
-           <Card>
-             <CardHeader>
-               <CardTitle className="text-lg">Problem Description</CardTitle>
-             </CardHeader>
-             <CardContent>
-                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-4">
-                  {problem.description}
-                </p>
-                 <Button variant="link" size="sm" className="p-0 h-auto mt-1">Show full description</Button>
-             </CardContent>
-           </Card>
-
-           <Card className="flex-grow flex flex-col">
-             <CardHeader>
-               <CardTitle className="text-lg">Key Points</CardTitle>
-               <CardDescription>Important notes from your chat.</CardDescription>
-             </CardHeader>
-             <CardContent className="flex-grow overflow-y-auto">
-               <ScrollArea className="h-full pr-3">
-                 <ul className="space-y-2 text-sm">
-                   <li className="border-b pb-1 mb-1 dark:border-gray-700">Challenge 1: Maintain 85% efficiency (-40°C to +60°C).</li>
-                   <li className="border-b pb-1 mb-1 dark:border-gray-700">Idea: Passive thermal management focus.</li>
-                   <li>Constraint: Use commercially available tech.</li>
-                 </ul>
-               </ScrollArea>
-             </CardContent>
-             <CardFooter>
-                <Button variant="outline" size="sm" className="w-full">Add Key Point Manually</Button>
-             </CardFooter>
-           </Card>
         </div>
       </div>
     </div>
