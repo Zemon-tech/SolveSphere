@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -7,16 +9,18 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle
 } from '@/components/ui/navigation-menu';
+import { useSupabase } from '../providers/SupabaseProvider';
+import { useRouter } from 'next/navigation';
 
-interface NavbarProps {
-  user?: {
-    id: string;
-    email: string;
-    name?: string;
-  } | null;
-}
+export function Navbar() {
+  const { user, signOut, isLoading } = useSupabase();
+  const router = useRouter();
 
-export function Navbar({ user }: NavbarProps) {
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/auth/signin');
+  };
+
   return (
     <nav className="bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -56,13 +60,13 @@ export function Navbar({ user }: NavbarProps) {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            {user ? (
+            {!isLoading && user ? (
               <div className="flex items-center gap-4">
                 <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {user.name || user.email}
+                  {user.user_metadata?.full_name || user.email}
                 </span>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/auth/signout">Sign out</Link>
+                <Button variant="outline" size="sm" onClick={handleSignOut}>
+                  Sign out
                 </Button>
               </div>
             ) : (

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "./components/Navbar";
+import { SupabaseProvider } from "./providers/SupabaseProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,15 +36,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} antialiased`}
       >
-        <div className="flex flex-col min-h-screen">
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <footer className="py-6 border-t">
-            <div className="container mx-auto px-4 text-center text-sm text-gray-500">
-              © {new Date().getFullYear()} SolveSphere. All rights reserved.
-            </div>
-          </footer>
-        </div>
+        <SupabaseProvider>
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <footer className="py-6 border-t">
+              <div className="container mx-auto px-4 text-center text-sm text-gray-500">
+                © {new Date().getFullYear()} SolveSphere. All rights reserved.
+              </div>
+            </footer>
+          </div>
+        </SupabaseProvider>
       </body>
     </html>
   );

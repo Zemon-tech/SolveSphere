@@ -1,7 +1,12 @@
+'use client';
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useSupabase } from './providers/SupabaseProvider';
 
 export default function Home() {
+  const { user, isLoading } = useSupabase();
+
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
@@ -18,9 +23,11 @@ export default function Home() {
             <Button size="lg" asChild>
               <Link href="/problems">Explore Problems</Link>
             </Button>
-            <Button variant="outline" size="lg" asChild>
-              <Link href="/auth/signin">Sign In</Link>
-            </Button>
+            {!isLoading && !user && (
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/auth/signin">Sign In</Link>
+              </Button>
+            )}
           </div>
         </div>
       </section>
@@ -121,9 +128,15 @@ export default function Home() {
           <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-8">
             Join SolveSphere today and start building your practical problem-solving skills.
           </p>
-          <Button size="lg" asChild>
-            <Link href="/auth/signup">Get Started</Link>
-          </Button>
+          {!isLoading && !user ? (
+            <Button size="lg" asChild>
+              <Link href="/auth/signup">Get Started</Link>
+            </Button>
+          ) : (
+            <Button size="lg" asChild>
+              <Link href="/problems">View Problems</Link>
+            </Button>
+          )}
         </div>
       </section>
     </div>
