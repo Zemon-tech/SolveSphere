@@ -3,6 +3,8 @@
 import { Button } from '@/components/ui/button';
 import { AIAssistant } from '../../../components/AIAssistant';
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 
 // Mock data for problems (would come from API in a real app)
 const mockProblems = [
