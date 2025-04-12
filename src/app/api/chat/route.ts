@@ -56,9 +56,10 @@ async function performWebSearch(query: string): Promise<string> {
 /**
  * Makes a request to the Groq API for chat completion
  * @param messages Chat messages
+ * @param generateContent Whether to include content generation instructions
  * @returns Generated response
  */
-async function getGroqCompletion(messages: any[]): Promise<ChatResponse> {
+async function getGroqCompletion(messages: any[], generateContent: boolean = false): Promise<ChatResponse> {
   try {
     const groqApiKey = process.env.GROQ_API_KEY;
     
@@ -68,6 +69,22 @@ async function getGroqCompletion(messages: any[]): Promise<ChatResponse> {
         role: "assistant",
         content: "I'm unable to respond due to a configuration issue. Please contact support."
       };
+    }
+    
+    // If generateContent is true, add instructions to include content types
+    if (generateContent) {
+      // Find the system message and enhance it
+      for (let i = 0; i < messages.length; i++) {
+        if (messages[i].role === 'system') {
+          messages[i].content += `\n\nGenerate rich content when appropriate:
+- Use tables (markdown format) for comparing data
+- Include mathematical formulas between $$ delimiters (e.g., $$E = mc^2$$)
+- Begin research summaries with "Research:" or "Study:"
+- Use markdown formatting for clarity and structure
+- Include diagrams and illustrations by describing them in markdown`;
+          break;
+        }
+      }
     }
     
     const response = await axios.post(
@@ -118,7 +135,7 @@ function needsWebSearch(message: string): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, problemId, problemTitle } = await req.json();
+    const { messages, problemId, problemTitle, generateContent = false } = await req.json();
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
@@ -139,7 +156,7 @@ export async function POST(req: NextRequest) {
     // Create system message with problem context and web search results if available
     const systemMessage = {
       role: "system",
-      content: `You are a helpful AI problem-solving assistant for ${problemTitle || 'this problem'}. You help guide users through solving complex problems without giving away the solution directly.
+      content: `You are a helpful AI problem-solving assistant for "${problemTitle || 'this problem'}". You help guide users through solving complex problems without giving away the solution directly.
       
 Your guidelines:
 1. Break down complex problems into manageable parts
@@ -156,8 +173,8 @@ Remember, your goal is to guide the user toward a solution, not to solve the pro
     // Prepare messages for Groq API (add system message at the beginning)
     const groqMessages = [systemMessage, ...messages];
     
-    // Get response from Groq
-    const response = await getGroqCompletion(groqMessages);
+    // Get response from Groq (pass generateContent flag)
+    const response = await getGroqCompletion(groqMessages, generateContent);
     
     return NextResponse.json(response);
   } catch (error) {

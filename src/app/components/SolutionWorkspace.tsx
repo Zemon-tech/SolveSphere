@@ -1,13 +1,25 @@
 "use client";
 
-import { useState, ReactNode } from 'react';
+import React, { useState, ReactNode } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { SidebarSeparator } from '@/components/ui/sidebar';
 import { ChevronLeft, Lightbulb, BookOpen, FileText, Layers, Database, ExternalLink, Download, Save, Edit, List, PanelLeft, PanelLeftClose, Menu } from 'lucide-react';
 import { SolutionEditor } from './SolutionEditor';
+import { Analysis } from './Analysis';
+import { Resources } from './Resources';
 import { ShareSolutionDialog } from './ShareSolutionDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+// Type for accumulated content
+type ContentItem = {
+  id: string;
+  type: 'image' | 'formula' | 'graph' | 'table' | 'research' | 'flowchart' | 'note';
+  content: string;
+  title?: string;
+  timestamp: Date;
+  sourceMessageId?: string;
+};
 
 interface Tab {
   id: string;
@@ -28,6 +40,9 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
   const [minimizedProblem, setMinimizedProblem] = useState<boolean>(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   
+  // State for accumulated content shared between components
+  const [accumulatedContent, setAccumulatedContent] = useState<ContentItem[]>([]);
+  
   // Handler to toggle problem description
   const toggleProblemDescription = () => {
     setMinimizedProblem(!minimizedProblem);
@@ -38,13 +53,21 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
     setSidebarCollapsed(!sidebarCollapsed);
   };
   
+  // Pass accumulated content to children (primarily AIAssistantChat)
+  const childrenWithProps = children && React.isValidElement(children) 
+    ? React.cloneElement(children, {
+        accumulatedContent,
+        setAccumulatedContent
+      }) 
+    : children;
+  
   // Sidebar sections configuration
   const mainSections: Tab[] = [
     {
       id: 'ai-assistant',
       label: 'AI Assistant',
       icon: <Lightbulb className="h-5 w-5" />,
-      content: children
+      content: childrenWithProps
     },
     {
       id: 'solution-editor',
@@ -72,32 +95,11 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
       label: 'Resources',
       icon: <Database className="h-5 w-5" />,
       content: (
-        <div className="h-full overflow-y-auto p-4">
-          <h2 className="text-xl font-semibold mb-4">Related Resources</h2>
-          <ul className="space-y-2">
-            <li className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md">
-              <a href="#" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                <span>Technical Reference Guide</span>
-                <ExternalLink className="h-3 w-3 ml-auto" />
-              </a>
-            </li>
-            <li className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md">
-              <a href="#" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                <span>Case Studies</span>
-                <ExternalLink className="h-3 w-3 ml-auto" />
-              </a>
-            </li>
-            <li className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md">
-              <a href="#" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                <span>Industry Standards</span>
-                <ExternalLink className="h-3 w-3 ml-auto" />
-              </a>
-            </li>
-          </ul>
-        </div>
+        <Resources 
+          problemId={problemId}
+          accumulatedContent={accumulatedContent}
+          setAccumulatedContent={setAccumulatedContent}
+        />
       )
     },
     {
@@ -105,32 +107,7 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
       label: 'Analysis',
       icon: <Layers className="h-5 w-5" />,
       content: (
-        <div className="h-full overflow-y-auto p-4">
-          <h2 className="text-xl font-semibold mb-4">Problem Analysis</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            This section will help you break down the problem into manageable components.
-          </p>
-          <div className="space-y-4">
-            <div className="border p-3 rounded-md">
-              <h3 className="font-medium">Key Constraints</h3>
-              <ul className="list-disc pl-5 mt-2 text-sm">
-                <li>Temperature range: -40°C to +60°C</li>
-                <li>Minimum 85% efficiency across range</li>
-                <li>Cost-effective (within 20% premium)</li>
-                <li>Minimal maintenance</li>
-              </ul>
-            </div>
-            <div className="border p-3 rounded-md">
-              <h3 className="font-medium">Performance Metrics</h3>
-              <ul className="list-disc pl-5 mt-2 text-sm">
-                <li>Energy output consistency</li>
-                <li>Thermal cycling durability</li>
-                <li>Installation complexity</li>
-                <li>Maintenance frequency</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+        <Analysis problemId={problemId} />
       )
     },
     {
@@ -180,7 +157,16 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
           </Link>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="flex items-center gap-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-1"
+            onClick={() => {
+              // In a real app, this would save to backend
+              console.log('Saving draft...');
+              // You could add a toast notification here
+            }}
+          >
             <Save className="h-4 w-4" />
             <span>Save Draft</span>
           </Button>
@@ -188,7 +174,16 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
             problemId={problem.id} 
             problemTitle={problem.title}
           />
-          <Button size="sm">Submit Solution</Button>
+          <Button 
+            size="sm"
+            onClick={() => {
+              // In a real app, this would submit to backend
+              console.log('Submitting solution...');
+              // You could add a toast notification or redirect here
+            }}
+          >
+            Submit Solution
+          </Button>
         </div>
       </div>
       
@@ -235,6 +230,49 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
                     </Tooltip>
                   ))}
                 </div>
+                
+                {/* Recent content section */}
+                {!sidebarCollapsed && (
+                  <>
+                    <div className="my-4 border-t border-gray-200 dark:border-gray-700"></div>
+                    <div className="mb-2">
+                      <h3 className="px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Recent Content
+                      </h3>
+                    </div>
+                    <div className="space-y-2">
+                      {accumulatedContent.slice(0, 5).map((item) => (
+                        <div 
+                          key={item.id} 
+                          className="px-3 py-2 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                          onClick={() => {
+                            // Switch to resources tab and possibly scroll to this item
+                            setActiveSection('resources');
+                          }}
+                        >
+                          <div className="font-medium truncate">{item.title || `${item.type.charAt(0).toUpperCase() + item.type.slice(1)}`}</div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {new Date(item.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                      ))}
+                      {accumulatedContent.length === 0 && (
+                        <div className="px-3 py-2 text-sm text-gray-500 italic">
+                          No accumulated content yet
+                        </div>
+                      )}
+                      {accumulatedContent.length > 5 && (
+                        <Button 
+                          variant="ghost" 
+                          className="w-full text-xs justify-start h-8"
+                          onClick={() => setActiveSection('resources')}
+                        >
+                          View all ({accumulatedContent.length})
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                )}
                 
                 {/* Documentation section */}
                 {!sidebarCollapsed && (
