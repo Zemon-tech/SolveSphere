@@ -55,6 +55,15 @@ export function Navbar() {
                       </NavigationMenuLink>
                     </Link>
                   </NavigationMenuItem>
+                  {user && (
+                    <NavigationMenuItem>
+                      <Link href="/admin" legacyBehavior passHref>
+                        <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                          Admin
+                        </NavigationMenuLink>
+                      </Link>
+                    </NavigationMenuItem>
+                  )}
                 </NavigationMenuList>
               </NavigationMenu>
             </div>
