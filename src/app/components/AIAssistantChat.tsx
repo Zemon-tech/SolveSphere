@@ -22,6 +22,9 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import axios from 'axios';
+import { MermaidDiagram } from './MermaidDiagram';
+import { MarkdownTable } from './MarkdownTable';
+import { markdownComponents } from './CustomMarkdownComponents';
 
 // Optional prism.js for code highlighting
 // import Prism from 'prismjs';
@@ -50,7 +53,7 @@ type MessageType = {
 // Type for accumulated content
 type ContentItem = {
   id: string;
-  type: 'image' | 'formula' | 'graph' | 'table' | 'research' | 'flowchart' | 'note';
+  type: 'image' | 'formula' | 'graph' | 'table' | 'research' | 'flowchart' | 'note' | 'diagram';
   content: string;
   title?: string;
   timestamp: Date;
@@ -183,6 +186,32 @@ export function AIAssistantChat({
         type: 'research',
         content: match[0],
         title: `Research Summary ${index + 1}`,
+        timestamp: new Date(),
+        sourceMessageId: messageId
+      });
+    });
+    
+    // Extract mermaid diagrams (text between ```mermaid and ```)
+    const mermaidRegex = /```mermaid\s*([\s\S]*?)```/g;
+    const mermaidDiagrams = [...content.matchAll(mermaidRegex)];
+    mermaidDiagrams.forEach((match, index) => {
+      // Identify diagram type for the title
+      const diagramContent = match[1].trim();
+      let diagramType = "Diagram";
+      
+      if (diagramContent.startsWith("graph")) diagramType = "Flowchart";
+      else if (diagramContent.startsWith("sequenceDiagram")) diagramType = "Sequence Diagram";
+      else if (diagramContent.startsWith("classDiagram")) diagramType = "Class Diagram";
+      else if (diagramContent.startsWith("stateDiagram")) diagramType = "State Diagram";
+      else if (diagramContent.startsWith("erDiagram")) diagramType = "ER Diagram";
+      else if (diagramContent.startsWith("gantt")) diagramType = "Gantt Chart";
+      else if (diagramContent.startsWith("pie")) diagramType = "Pie Chart";
+      
+      newItems.push({
+        id: `diagram-${Date.now()}-${index}`,
+        type: 'diagram',
+        content: diagramContent,
+        title: `${diagramType} ${index + 1}`,
         timestamp: new Date(),
         sourceMessageId: messageId
       });
@@ -461,6 +490,7 @@ export function AIAssistantChat({
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm, remarkMath]}
                         rehypePlugins={[rehypeKatex]}
+                        components={markdownComponents}
                       >
                         {message.content}
                       </ReactMarkdown>
@@ -600,9 +630,9 @@ export function AIAssistantChat({
               </TabsContent>
               
               <TabsContent value="data" className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
-                {accumulatedContent.filter(item => item.type === 'graph' || item.type === 'table' || item.type === 'formula').length > 0 ? (
+                {accumulatedContent.filter(item => item.type === 'graph' || item.type === 'table' || item.type === 'formula' || item.type === 'diagram').length > 0 ? (
                   accumulatedContent
-                    .filter(item => item.type === 'graph' || item.type === 'table' || item.type === 'formula')
+                    .filter(item => item.type === 'graph' || item.type === 'table' || item.type === 'formula' || item.type === 'diagram')
                     .map(item => (
                       <div key={item.id} className="border rounded-md p-3 bg-gray-50 dark:bg-gray-800">
                         <div className="font-medium text-sm mb-1">{item.title}</div>
@@ -616,10 +646,15 @@ export function AIAssistantChat({
                             </ReactMarkdown>
                           </div>
                         ) : item.type === 'table' ? (
-                          <div className="overflow-x-auto">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {item.content}
-                            </ReactMarkdown>
+                          <div className="overflow-hidden rounded border">
+                            <MarkdownTable 
+                              content={item.content} 
+                              title={item.title} 
+                            />
+                          </div>
+                        ) : item.type === 'diagram' ? (
+                          <div className="bg-white dark:bg-gray-900 p-2 rounded border overflow-x-auto">
+                            <MermaidDiagram content={item.content} />
                           </div>
                         ) : (
                           <div className="text-sm whitespace-pre-wrap">{item.content}</div>

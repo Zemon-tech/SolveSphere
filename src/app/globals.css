@@ -120,3 +120,45 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom table styling for markdown tables */
+.prose table {
+  @apply w-full border-collapse overflow-hidden;
+}
+
+.prose table th {
+  @apply px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700;
+}
+
+.prose table td {
+  @apply px-4 py-3 text-sm border-b border-gray-200 dark:border-gray-700 last:border-0;
+}
+
+.prose table tr {
+  @apply hover:bg-gray-50 dark:hover:bg-gray-800/50;
+}
+
+/* Responsive behavior */
+@media (max-width: 640px) {
+  .prose table {
+    @apply text-xs;
+  }
+  
+  .prose table th,
+  .prose table td {
+    @apply px-2 py-2;
+  }
+}
+
+/* Enable responsive text sizing for long content */
+td[data-content-length="large"] {
+  @apply text-xs;
+}
+
+td[data-content-length="medium"] {
+  @apply text-sm;
+}
+
+td[data-content-length="small"] {
+  @apply text-base;
+}

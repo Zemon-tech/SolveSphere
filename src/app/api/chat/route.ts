@@ -115,6 +115,123 @@ function createImagePrompt(message: string): string {
 }
 
 /**
+ * Detects if the message content likely needs diagram generation with Mermaid
+ * @param message The message content to analyze
+ * @returns Boolean indicating if diagram generation is needed
+ */
+function needsDiagramGeneration(message: string): boolean {
+  // Keywords and phrases indicating diagram generation is appropriate
+  const diagramKeywords = [
+    'flowchart', 'flow chart', 'diagram', 'workflow', 'sequence diagram',
+    'state diagram', 'gantt chart', 'pie chart', 'class diagram', 
+    'entity relationship', 'er diagram', 'process flow', 'architecture diagram',
+    'uml', 'graph', 'decision tree', 'network diagram'
+  ];
+  
+  // Check if the message contains any of the diagram-related keywords
+  return diagramKeywords.some(keyword => 
+    message.toLowerCase().includes(keyword.toLowerCase())
+  );
+}
+
+/**
+ * Creates a Mermaid diagram template based on the message content
+ * @param message The message to analyze
+ * @returns A well-formed Mermaid diagram syntax
+ */
+function createMermaidDiagram(message: string): string {
+  const lowerMessage = message.toLowerCase();
+  
+  // Determine diagram type based on message content
+  if (lowerMessage.includes('flowchart') || lowerMessage.includes('flow chart') || lowerMessage.includes('workflow')) {
+    return `graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Action 1]
+    B -->|No| D[Action 2]
+    C --> E[Result 1]
+    D --> F[Result 2]
+    E --> G[End]
+    F --> G`;
+  } 
+  else if (lowerMessage.includes('sequence diagram')) {
+    return `sequenceDiagram
+    participant U as User
+    participant S as System
+    participant D as Database
+    U->>S: Request Data
+    S->>D: Query Data
+    D->>S: Return Results
+    S->>U: Display Results`;
+  }
+  else if (lowerMessage.includes('class diagram') || lowerMessage.includes('uml')) {
+    return `classDiagram
+    class Entity {
+      +id: string
+      +name: string
+      +getData()
+    }
+    class RelatedEntity {
+      +entityId: string
+      +value: number
+      +processData()
+    }
+    Entity <-- RelatedEntity`;
+  }
+  else if (lowerMessage.includes('entity relationship') || lowerMessage.includes('er diagram')) {
+    return `erDiagram
+    ENTITY1 ||--o{ ENTITY2 : has
+    ENTITY1 {
+        string id
+        string name
+    }
+    ENTITY2 {
+        string id
+        string entity1Id
+        number value
+    }`;
+  }
+  else if (lowerMessage.includes('gantt') || lowerMessage.includes('schedule') || lowerMessage.includes('timeline')) {
+    return `gantt
+    title Project Timeline
+    dateFormat  YYYY-MM-DD
+    section Planning
+    Research           :a1, 2023-01-01, 10d
+    Design             :a2, after a1, 7d
+    section Implementation
+    Development        :a3, after a2, 15d
+    Testing            :a4, after a3, 5d
+    section Deployment
+    Release            :a5, after a4, 2d`;
+  }
+  else if (lowerMessage.includes('pie chart') || lowerMessage.includes('distribution')) {
+    return `pie
+    title Distribution
+    "Category A" : 42
+    "Category B" : 28
+    "Category C" : 30`;
+  }
+  else if (lowerMessage.includes('state') || lowerMessage.includes('status')) {
+    return `stateDiagram-v2
+    [*] --> Idle
+    Idle --> Processing: Start
+    Processing --> Complete: Success
+    Processing --> Error: Failure
+    Complete --> [*]
+    Error --> Idle: Retry`;
+  }
+  else {
+    // Default to a simple flowchart
+    return `graph TD
+    A[Step 1] --> B[Step 2]
+    B --> C[Step 3]
+    C --> D[Step 4]
+    B --> E[Alternative]
+    E --> F[Result]
+    D --> F`;
+  }
+}
+
+/**
  * Makes a request to the Groq API for chat completion
  * @param messages Chat messages
  * @param generateContent Whether to include content generation instructions
@@ -143,6 +260,10 @@ async function getGroqCompletion(messages: any[], generateContent: boolean = fal
 - Begin research summaries with "Research:" or "Study:"
 - Use markdown formatting for clarity and structure
 - When images would be helpful to explain concepts, include an image generation request in the format !IMAGE[detailed image description]
+- For visualizing processes, workflows, or relationships, create Mermaid diagrams by enclosing the diagram code in triple backticks with "mermaid" as the language, e.g., \`\`\`mermaid
+graph TD
+    A --> B
+\`\`\`
 - For images, be specific and detailed in your descriptions to get the best visual results`;
           break;
         }
@@ -167,12 +288,19 @@ async function getGroqCompletion(messages: any[], generateContent: boolean = fal
     
     let result = response.data.choices[0].message;
     
-    // Check if the generated content needs image enhancement
-    if (generateContent && needsImageGeneration(messages[messages.length - 1].content)) {
-      // If the AI didn't include an image generation request, let's add one
-      if (!result.content.includes('!IMAGE[')) {
-        const imagePrompt = createImagePrompt(messages[messages.length - 1].content);
-        // Add the image generation request to the AI's response
+    // Check for enhancement opportunities
+    if (generateContent) {
+      const userMessage = messages[messages.length - 1].content;
+      
+      // Check if diagram generation is needed and not already included
+      if (needsDiagramGeneration(userMessage) && !result.content.includes('```mermaid')) {
+        const mermaidDiagram = createMermaidDiagram(userMessage);
+        result.content += `\n\nHere's a diagram to visualize this concept:\n\n\`\`\`mermaid\n${mermaidDiagram}\n\`\`\``;
+      }
+      
+      // Check if image generation is needed and not already included
+      else if (needsImageGeneration(userMessage) && !result.content.includes('!IMAGE[')) {
+        const imagePrompt = createImagePrompt(userMessage);
         result.content += `\n\n!IMAGE[${imagePrompt}]`;
       }
     }
@@ -239,6 +367,7 @@ Your guidelines:
 4. Provide relevant information when needed
 5. Help users evaluate their own solutions
 6. Generate images using the !IMAGE[detailed description] syntax when visuals would help explain concepts
+7. Create diagrams with Mermaid syntax when explaining processes, workflows, or relationships
 
 ${webSearchResults ? "Use the following web search results to inform your response:\n\n" + webSearchResults : ""}
 

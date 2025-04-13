@@ -9,6 +9,7 @@ SolveSphere is a web-based platform designed to challenge users through real-wor
 - **Community Platform**: Share, discuss, and get feedback on solutions
 - **AI Assistant**: Intelligent guidance for problem-solving without giving away answers
 - **AI Image Generation**: Visual content generation powered by Stability AI for diagrams, charts, and illustrations
+- **Interactive Diagrams**: Create and visualize diagrams, flowcharts, and process flows with Mermaid.js
 
 ## Tech Stack
 
@@ -17,6 +18,7 @@ SolveSphere is a web-based platform designed to challenge users through real-wor
 - **Database**: Supabase (PostgreSQL)
 - **Authentication**: Supabase Auth
 - **AI Models**: Groq LLama 3 for chat, Stability AI for image generation
+- **Visualization**: Mermaid.js for diagrams and flowcharts
 
 ## Getting Started
 
@@ -84,6 +86,26 @@ SolveSphere uses Stability AI's Stable Diffusion to generate images that help vi
 3. **Generated Content**: All images appear in both the "Visuals" tab of the chat and in the "Resources" section
 
 For detailed documentation on the Stability AI integration, see the [StabilityAIIntegration.md](docs/StabilityAIIntegration.md) file.
+
+### Mermaid.js Diagram Integration
+
+SolveSphere includes Mermaid.js for creating and visualizing various types of diagrams and charts, enhancing the problem-solving process with rich visual aids:
+
+- **AI-Generated Diagrams**: The AI assistant can automatically create diagrams based on your conversation
+- **Interactive Diagram Editor**: Create custom diagrams with the built-in diagram editor
+- **Multiple Diagram Types**: Support for flowcharts, sequence diagrams, class diagrams, entity-relationship diagrams, Gantt charts, pie charts, and state diagrams
+
+#### How to Use Diagram Features
+
+1. **In the AI Chat**: Ask the assistant to create a diagram. For example: "Create a flowchart for this algorithm" or "Make a sequence diagram for this process"
+
+2. **Manual Creation**: Use the "Create Diagram" button in the Resources panel to design custom diagrams with the Mermaid syntax editor
+
+3. **Templates**: Choose from predefined templates for common diagram types
+
+4. **Live Preview**: See your diagram update in real-time as you edit the Mermaid code
+
+All diagrams are saved in the "Data & Charts" section of the accumulated content panel for easy reference and reuse.
 
 ## Database Setup
 
@@ -165,3 +187,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - This project was created as a learning exercise for Next.js, Supabase, and Tailwind CSS.
 - Inspiration from real-world problem-solving platforms like Kaggle, HackerRank, and LeetCode.
 - Image generation powered by Stability AI's Stable Diffusion.
+- Diagram visualization powered by Mermaid.js.

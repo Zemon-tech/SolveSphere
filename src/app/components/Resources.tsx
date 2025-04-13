@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { FileText, ExternalLink, Download, Trash2, Copy, Search, ImagePlus } from 'lucide-react';
+import { FileText, ExternalLink, Download, Trash2, Copy, Search, ImagePlus, GitBranch } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -42,11 +42,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { MermaidDiagram } from './MermaidDiagram';
+import { MarkdownTable } from './MarkdownTable';
 
 // Type for accumulated content - matching the AIAssistantChat type
 type ContentItem = {
   id: string;
-  type: 'image' | 'formula' | 'graph' | 'table' | 'research' | 'flowchart' | 'note';
+  type: 'image' | 'formula' | 'graph' | 'table' | 'research' | 'flowchart' | 'note' | 'diagram';
   content: string;
   title?: string;
   timestamp: Date;
@@ -85,6 +87,17 @@ export function Resources({
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [imagePrompt, setImagePrompt] = useState('');
   const [imageGenerationError, setImageGenerationError] = useState<string | null>(null);
+  
+  // New state for diagram creation dialog
+  const [diagramCode, setDiagramCode] = useState(`graph TD
+    A[Start] --> B{Decision?}
+    B -->|Yes| C[Action 1]
+    B -->|No| D[Action 2]
+    C --> E[Result 1]
+    D --> F[Result 2]`);
+  const [diagramTitle, setDiagramTitle] = useState('Flowchart');
+  const [diagramType, setDiagramType] = useState('flowchart');
+  const [diagramError, setDiagramError] = useState<string | null>(null);
   
   // Fetch external resources from Supabase
   useEffect(() => {
@@ -264,6 +277,124 @@ export function Resources({
     }
   };
 
+  // Generate diagram directly from Resources
+  const handleCreateDiagram = () => {
+    if (!diagramCode.trim()) return;
+    
+    try {
+      // Create a new diagram content item
+      const diagramItem: ContentItem = {
+        id: `diagram-${Date.now()}`,
+        type: 'diagram',
+        content: diagramCode.trim(),
+        title: diagramTitle || 'Diagram',
+        timestamp: new Date()
+      };
+      
+      // Add to accumulated content
+      setAccumulatedContent(prev => [...prev, diagramItem]);
+      
+      // Reset diagram error
+      setDiagramError(null);
+      
+    } catch (error) {
+      console.error('Error creating diagram:', error);
+      setDiagramError('Failed to create diagram. Please check the syntax and try again.');
+    }
+  };
+  
+  // Load template based on diagram type
+  const loadDiagramTemplate = (type: string) => {
+    setDiagramType(type);
+    
+    switch (type) {
+      case 'flowchart':
+        setDiagramTitle('Flowchart');
+        setDiagramCode(`graph TD
+    A[Start] --> B{Decision?}
+    B -->|Yes| C[Action 1]
+    B -->|No| D[Action 2]
+    C --> E[Result 1]
+    D --> F[Result 2]`);
+        break;
+      case 'sequence':
+        setDiagramTitle('Sequence Diagram');
+        setDiagramCode(`sequenceDiagram
+    participant U as User
+    participant S as System
+    participant D as Database
+    U->>S: Request Data
+    S->>D: Query Data
+    D->>S: Return Results
+    S->>U: Display Results`);
+        break;
+      case 'class':
+        setDiagramTitle('Class Diagram');
+        setDiagramCode(`classDiagram
+    class Entity {
+      +id: string
+      +name: string
+      +getData()
+    }
+    class RelatedEntity {
+      +entityId: string
+      +value: number
+      +processData()
+    }
+    Entity <-- RelatedEntity`);
+        break;
+      case 'er':
+        setDiagramTitle('ER Diagram');
+        setDiagramCode(`erDiagram
+    ENTITY1 ||--o{ ENTITY2 : has
+    ENTITY1 {
+        string id
+        string name
+    }
+    ENTITY2 {
+        string id
+        string entity1Id
+        number value
+    }`);
+        break;
+      case 'gantt':
+        setDiagramTitle('Gantt Chart');
+        setDiagramCode(`gantt
+    title Project Timeline
+    dateFormat  YYYY-MM-DD
+    section Planning
+    Research           :a1, 2023-01-01, 10d
+    Design             :a2, after a1, 7d
+    section Implementation
+    Development        :a3, after a2, 15d
+    Testing            :a4, after a3, 5d`);
+        break;
+      case 'pie':
+        setDiagramTitle('Pie Chart');
+        setDiagramCode(`pie
+    title Distribution
+    "Category A" : 42
+    "Category B" : 28
+    "Category C" : 30`);
+        break;
+      case 'state':
+        setDiagramTitle('State Diagram');
+        setDiagramCode(`stateDiagram-v2
+    [*] --> Idle
+    Idle --> Processing: Start
+    Processing --> Complete: Success
+    Processing --> Error: Failure
+    Complete --> [*]
+    Error --> Idle: Retry`);
+        break;
+      default:
+        setDiagramTitle('Flowchart');
+        setDiagramCode(`graph TD
+    A[Start] --> B[Process]
+    B --> C[End]`);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -298,6 +429,110 @@ export function Resources({
               <CardDescription>Access problem-related resources and your saved content</CardDescription>
             </div>
             <div className="flex gap-2">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center gap-1">
+                    <GitBranch className="w-4 h-4" />
+                    <span>Create Diagram</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Create Diagram with Mermaid</DialogTitle>
+                    <DialogDescription>
+                      Create diagrams, charts, and visualizations using Mermaid syntax.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <div className="space-y-4 py-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-1/3">
+                        <label htmlFor="title" className="text-sm font-medium">
+                          Diagram Title
+                        </label>
+                        <Input
+                          id="title"
+                          value={diagramTitle}
+                          onChange={(e) => setDiagramTitle(e.target.value)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div className="w-2/3">
+                        <label htmlFor="type" className="text-sm font-medium">
+                          Diagram Type
+                        </label>
+                        <select
+                          id="type"
+                          value={diagramType}
+                          onChange={(e) => loadDiagramTemplate(e.target.value)}
+                          className="w-full mt-1 px-3 py-1.5 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm dark:bg-gray-800"
+                        >
+                          <option value="flowchart">Flowchart</option>
+                          <option value="sequence">Sequence Diagram</option>
+                          <option value="class">Class Diagram</option>
+                          <option value="er">ER Diagram</option>
+                          <option value="gantt">Gantt Chart</option>
+                          <option value="pie">Pie Chart</option>
+                          <option value="state">State Diagram</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <label htmlFor="diagram-code" className="text-sm font-medium">
+                          Diagram Code
+                        </label>
+                        <a 
+                          href="https://mermaid.js.org/syntax/flowchart.html" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-500 hover:underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Mermaid Syntax Help
+                        </a>
+                      </div>
+                      <Textarea
+                        id="diagram-code"
+                        value={diagramCode}
+                        onChange={(e) => setDiagramCode(e.target.value)}
+                        rows={10}
+                        className="font-mono text-sm"
+                        placeholder="Enter Mermaid diagram code here..."
+                      />
+                    </div>
+                    
+                    <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md border">
+                      <p className="text-sm font-medium mb-2">Preview</p>
+                      {diagramCode ? (
+                        <div className="bg-white dark:bg-gray-900 p-3 rounded-md border">
+                          <MermaidDiagram content={diagramCode} />
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-500 italic">No diagram code to preview</div>
+                      )}
+                    </div>
+                    
+                    {diagramError && (
+                      <div className="text-sm text-red-500 bg-red-50 dark:bg-red-900/20 p-2 rounded">
+                        {diagramError}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button
+                      onClick={handleCreateDiagram}
+                      disabled={!diagramCode.trim()}
+                      className="w-full sm:w-auto"
+                    >
+                      Create Diagram
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" className="flex items-center gap-1">
@@ -449,10 +684,15 @@ export function Resources({
                         </ReactMarkdown>
                       </div>
                     ) : item.type === 'table' ? (
-                      <div className="overflow-x-auto">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {item.content}
-                        </ReactMarkdown>
+                      <div className="overflow-hidden rounded border">
+                        <MarkdownTable 
+                          content={item.content} 
+                          title={item.title} 
+                        />
+                      </div>
+                    ) : item.type === 'diagram' ? (
+                      <div className="bg-white dark:bg-gray-900 p-2 rounded border overflow-x-auto">
+                        <MermaidDiagram content={item.content} />
                       </div>
                     ) : item.type === 'research' ? (
                       <div className="prose prose-sm dark:prose-invert max-w-none">
