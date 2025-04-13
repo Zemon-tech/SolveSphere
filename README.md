@@ -8,6 +8,7 @@ SolveSphere is a web-based platform designed to challenge users through real-wor
 - **Solution Development Environment**: Workspace for creating and documenting solutions
 - **Community Platform**: Share, discuss, and get feedback on solutions
 - **AI Assistant**: Intelligent guidance for problem-solving without giving away answers
+- **AI Image Generation**: Visual content generation powered by Stability AI for diagrams, charts, and illustrations
 
 ## Tech Stack
 
@@ -15,6 +16,7 @@ SolveSphere is a web-based platform designed to challenge users through real-wor
 - **Backend**: Next.js API Routes
 - **Database**: Supabase (PostgreSQL)
 - **Authentication**: Supabase Auth
+- **AI Models**: Groq LLama 3 for chat, Stability AI for image generation
 
 ## Getting Started
 
@@ -22,6 +24,8 @@ SolveSphere is a web-based platform designed to challenge users through real-wor
 
 - Node.js 18+ and npm
 - Supabase account
+- Stability AI API key
+- Groq API key
 
 ### Installation
 
@@ -41,7 +45,18 @@ SolveSphere is a web-based platform designed to challenge users through real-wor
    cp .env.local.example .env.local
    ```
 
-4. Update the `.env.local` file with your Supabase credentials.
+4. Update the `.env.local` file with your Supabase credentials, Stability AI API key, and Groq API key:
+   ```
+   # Supabase credentials
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   
+   # Stability AI API Key
+   STABILITY_API_KEY=your_stability_api_key
+   
+   # Groq API Key for LLama AI
+   GROQ_API_KEY=your_groq_api_key
+   ```
 
 5. Start the development server:
    ```bash
@@ -49,6 +64,26 @@ SolveSphere is a web-based platform designed to challenge users through real-wor
    ```
 
 6. Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
+
+## AI-Powered Features
+
+### Stability AI Integration
+
+SolveSphere uses Stability AI's Stable Diffusion to generate images that help visualize complex concepts within the problem-solving process. This integration enables:
+
+- **Automatic Image Generation**: The AI assistant automatically detects when visual aids would be helpful and generates appropriate images
+- **Custom Visual Creation**: Users can request specific diagrams, charts, and illustrations directly through the chat interface
+- **Visual Resource Library**: All generated images are saved in the Resources section for easy reference
+
+#### How to Use Image Generation
+
+1. **In the AI Chat**: Simply ask the assistant to visualize a concept. For example: "Can you draw a diagram of how a heat pump works?" or "Create a flowchart for the algorithm"
+
+2. **Direct Generation**: Use the "Generate Image" button in the Resources panel to create custom visuals with specific prompts
+
+3. **Generated Content**: All images appear in both the "Visuals" tab of the chat and in the "Resources" section
+
+For detailed documentation on the Stability AI integration, see the [StabilityAIIntegration.md](docs/StabilityAIIntegration.md) file.
 
 ## Database Setup
 
@@ -93,6 +128,11 @@ SolveSphere provides the following API endpoints:
 - `GET /api/users` - Get a user profile
 - `PUT /api/users` - Update a user profile
 
+### AI Integration
+- `POST /api/chat` - Send messages to the Groq LLama 3 model
+- `POST /api/generate-image` - Generate images using Stability AI's Stable Diffusion
+- `POST /api/generate-solution` - Generate a structured solution based on chat history
+
 ## Project Structure
 
 ```
@@ -109,6 +149,7 @@ SolveSphere provides the following API endpoints:
   /migrations      # Database migration files
   seed.sql         # Database seed data
   README.md        # Supabase setup instructions
+/docs              # Documentation files
 ```
 
 ## Contributing
@@ -123,3 +164,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - This project was created as a learning exercise for Next.js, Supabase, and Tailwind CSS.
 - Inspiration from real-world problem-solving platforms like Kaggle, HackerRank, and LeetCode.
+- Image generation powered by Stability AI's Stable Diffusion.

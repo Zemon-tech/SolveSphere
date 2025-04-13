@@ -54,6 +54,67 @@ async function performWebSearch(query: string): Promise<string> {
 }
 
 /**
+ * Detects if the message content likely needs image generation
+ * @param message The message content to analyze
+ * @returns Boolean indicating if image generation is needed
+ */
+function needsImageGeneration(message: string): boolean {
+  // Keywords and phrases indicating image generation is appropriate
+  const imageKeywords = [
+    'diagram', 'visualize', 'illustration', 'picture', 'image', 'draw',
+    'flowchart', 'graph', 'chart', 'visualization', 'sketch', 'figure',
+    'render', 'plot', 'create a visual', 'show me', 'generate image',
+    'generate a diagram', 'generate an image', 'can you show', 'visually represent',
+    'visual explanation', 'can you draw', 'make a diagram', 'make an image'
+  ];
+  
+  // Check if the message contains any of the image-related keywords
+  return imageKeywords.some(keyword => 
+    message.toLowerCase().includes(keyword.toLowerCase())
+  );
+}
+
+/**
+ * Creates an appropriate image prompt based on the message content
+ * @param message The message to analyze
+ * @returns A well-formed prompt for image generation
+ */
+function createImagePrompt(message: string): string {
+  // Extract the main subject for the image
+  const promptPhrases = [
+    'diagram of', 'visualization of', 'illustration of', 'picture of',
+    'flowchart of', 'graph showing', 'chart displaying', 'sketch of',
+    'drawing of', 'visual representation of'
+  ];
+  
+  let imagePrompt = '';
+  
+  // Try to extract the specific request
+  for (const phrase of promptPhrases) {
+    if (message.toLowerCase().includes(phrase)) {
+      const parts = message.toLowerCase().split(phrase);
+      if (parts.length > 1) {
+        // Get the content after the phrase up to the next punctuation or end
+        const rawPrompt = parts[1].split(/[.!?;]/)[0].trim();
+        if (rawPrompt) {
+          // Add style guidance for better results
+          imagePrompt = `A clear, detailed, educational ${phrase} ${rawPrompt}. High quality, professional diagram style with labels and clear visual elements.`;
+          break;
+        }
+      }
+    }
+  }
+  
+  // If no specific phrase found, create a generic prompt from the whole message
+  if (!imagePrompt) {
+    // Clean the message and keep it concise
+    imagePrompt = `Educational diagram visualizing: ${message.replace(/[^\w\s,.]/g, ' ').slice(0, 100)}. Clear, detailed, with labels.`;
+  }
+  
+  return imagePrompt;
+}
+
+/**
  * Makes a request to the Groq API for chat completion
  * @param messages Chat messages
  * @param generateContent Whether to include content generation instructions
@@ -81,7 +142,8 @@ async function getGroqCompletion(messages: any[], generateContent: boolean = fal
 - Include mathematical formulas between $$ delimiters (e.g., $$E = mc^2$$)
 - Begin research summaries with "Research:" or "Study:"
 - Use markdown formatting for clarity and structure
-- Include diagrams and illustrations by describing them in markdown`;
+- When images would be helpful to explain concepts, include an image generation request in the format !IMAGE[detailed image description]
+- For images, be specific and detailed in your descriptions to get the best visual results`;
           break;
         }
       }
@@ -103,7 +165,19 @@ async function getGroqCompletion(messages: any[], generateContent: boolean = fal
       }
     );
     
-    return response.data.choices[0].message;
+    let result = response.data.choices[0].message;
+    
+    // Check if the generated content needs image enhancement
+    if (generateContent && needsImageGeneration(messages[messages.length - 1].content)) {
+      // If the AI didn't include an image generation request, let's add one
+      if (!result.content.includes('!IMAGE[')) {
+        const imagePrompt = createImagePrompt(messages[messages.length - 1].content);
+        // Add the image generation request to the AI's response
+        result.content += `\n\n!IMAGE[${imagePrompt}]`;
+      }
+    }
+    
+    return result;
   } catch (error) {
     console.error('Error calling Groq API:', error);
     return {
@@ -164,6 +238,7 @@ Your guidelines:
 3. Suggest approaches to consider
 4. Provide relevant information when needed
 5. Help users evaluate their own solutions
+6. Generate images using the !IMAGE[detailed description] syntax when visuals would help explain concepts
 
 ${webSearchResults ? "Use the following web search results to inform your response:\n\n" + webSearchResults : ""}
 

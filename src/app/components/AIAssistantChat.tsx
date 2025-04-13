@@ -55,6 +55,8 @@ type ContentItem = {
   title?: string;
   timestamp: Date;
   sourceMessageId?: string;
+  imageUrl?: string;
+  base64Data?: string;
 };
 
 export function AIAssistantChat({ 
@@ -184,6 +186,78 @@ export function AIAssistantChat({
         timestamp: new Date(),
         sourceMessageId: messageId
       });
+    });
+    
+    // Extract image generation prompts (text between !IMAGE[ and ])
+    const imagePromptRegex = /!IMAGE\[(.*?)\]/g;
+    const imagePrompts = [...content.matchAll(imagePromptRegex)];
+    
+    // Process each image prompt
+    const processImagePrompt = async (prompt: string, index: number) => {
+      try {
+        const imageId = `image-${Date.now()}-${index}`;
+        
+        // Add a placeholder initially
+        const imageItem: ContentItem = {
+          id: imageId,
+          type: 'image',
+          content: prompt,
+          title: `Generated Image ${index + 1}`,
+          timestamp: new Date(),
+          sourceMessageId: messageId
+        };
+        
+        setAccumulatedContent(prev => [...prev, imageItem]);
+        
+        // Generate the image
+        const response = await fetch('/api/generate-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prompt: prompt,
+            width: 1024,
+            height: 1024,
+            numOutputs: 1
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to generate image');
+        }
+        
+        const data = await response.json();
+        if (data.images && data.images.length > 0) {
+          // Update the content item with the image data
+          setAccumulatedContent(prev => prev.map(item => 
+            item.id === imageId 
+              ? { 
+                  ...item, 
+                  base64Data: data.images[0].base64,
+                  content: `Generated from prompt: ${prompt}`
+                } 
+              : item
+          ));
+        }
+      } catch (error) {
+        console.error('Error generating image:', error);
+        // Show error in chat
+        setMessages(prev => [
+          ...prev,
+          {
+            id: `error-${Date.now()}`,
+            role: 'assistant',
+            content: `I couldn't generate the image. There might be an issue with the image generation service.`,
+            timestamp: new Date(),
+          }
+        ]);
+      }
+    };
+    
+    // Process each image prompt asynchronously
+    imagePrompts.forEach((match, index) => {
+      processImagePrompt(match[1], index);
     });
     
     // If there are new items, add them to the accumulated content
@@ -500,12 +574,27 @@ export function AIAssistantChat({
                     .map(item => (
                       <div key={item.id} className="border rounded-md p-3 bg-gray-50 dark:bg-gray-800">
                         <div className="font-medium text-sm mb-1">{item.title}</div>
-                        <div className="text-sm whitespace-pre-wrap">{item.content}</div>
+                        {item.type === 'image' && item.base64Data ? (
+                          <div className="flex flex-col items-center">
+                            <img 
+                              src={`data:image/png;base64,${item.base64Data}`} 
+                              alt={item.title || 'Generated image'} 
+                              className="rounded-md max-h-96 w-auto object-contain" 
+                            />
+                            <p className="text-xs text-gray-500 mt-2">Generated from prompt: {item.content}</p>
+                          </div>
+                        ) : item.type === 'image' ? (
+                          <div className="flex items-center justify-center h-48 bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse">
+                            <p className="text-sm text-gray-500">Generating image...</p>
+                          </div>
+                        ) : (
+                          <div className="text-sm whitespace-pre-wrap">{item.content}</div>
+                        )}
                       </div>
                     ))
                 ) : (
                   <div className="text-sm text-gray-500 italic text-center mt-12">
-                    No visuals yet. They'll appear here when generated.
+                    No visuals yet. They'll appear here when generated. Use !IMAGE[prompt] syntax in your messages to generate images.
                   </div>
                 )}
               </TabsContent>
@@ -640,7 +729,7 @@ export function AIAssistantChat({
             </span>
             <div className="flex items-center gap-1">
               <Globe className="h-3 w-3 mr-1" />
-              <span>Web search and content generation available</span>
+              <span>Web search and <span title="Use !IMAGE[prompt] to generate images">AI image generation</span> available</span>
             </div>
           </div>
           
