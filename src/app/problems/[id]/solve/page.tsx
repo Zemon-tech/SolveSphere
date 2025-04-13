@@ -4,77 +4,97 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { SolutionWorkspace } from '@/app/components/SolutionWorkspace';
 import { AIAssistantChat } from '@/app/components/AIAssistantChat';
+import { supabase } from '@/app/lib/supabase';
+import { Spinner } from '@/components/ui/spinner';
 
-// Mock data for problems (would come from API in a real app)
-const mockProblems = [
-  {
-    id: '1',
-    title: 'Solar Panel Optimization for Extreme Climates',
-    description: 'Design a solar panel system that can operate efficiently in extreme temperature conditions ranging from -40°C to +60°C.',
-    category: 'Engineering',
-    difficulty: 3,
-    created_at: new Date('2023-06-15'),
-    detailed_description: `
-## Background
-Solar panels are a critical renewable energy technology, but their efficiency is significantly affected by temperature. In extreme climates, both very cold and very hot temperatures can reduce performance and durability.
-
-## Challenge
-Design a solar panel system that can:
-1. Maintain at least 85% efficiency across the temperature range of -40°C to +60°C
-2. Include thermal management solutions that are passive where possible to reduce energy consumption
-3. Be durable enough to withstand thermal cycling (daily and seasonal temperature changes)
-4. Be cost-effective and practical for implementation in remote areas
-
-## Constraints
-- The design should use commercially available materials and technologies
-- The solution should require minimal maintenance
-- Total system cost should be competitive with standard solar installations (within 20% premium)
-
-## Deliverables
-- Detailed system design with technical specifications
-- Thermal management strategy explanation
-- Performance analysis across the temperature range
-- Cost estimation and comparison to standard solutions
-- Implementation plan for a pilot installation
-    `,
-  },
-  {
-    id: '2',
-    title: 'Financial Model for Sustainable Urban Development',
-    description: 'Create a financial model that evaluates the economic viability of converting an abandoned industrial area into a sustainable urban community.',
-    category: 'Finance',
-    difficulty: 4,
-    created_at: new Date('2023-07-22'),
-    detailed_description: 'Full description for problem 2...',
-  },
-  {
-    id: '3',
-    title: 'Spacecraft Docking System Simulation',
-    description: 'Develop a physics-based simulation of a spacecraft docking system that accounts for microgravity and orbital mechanics.',
-    category: 'Space',
-    difficulty: 5,
-    created_at: new Date('2023-08-10'),
-    detailed_description: 'Full description for problem 3...',
-  },
-];
+// Type for Problem
+type Problem = {
+  id: string;
+  title: string;
+  description: string;
+  category: string | string[];
+  difficulty: number;
+  created_at: string | Date;
+  detailed_description?: string;
+};
 
 export default function SolveProblemPage() {
-  // Get params using useParams hook
   const params = useParams();
-  const id = params.id as string;
+  const problemId = Array.isArray(params.id) ? params.id[0] : params.id as string;
   
-  // In a real app, this would fetch data from an API
-  const problem = mockProblems.find(p => p.id === id);
-  
-  if (!problem) {
+  const [problem, setProblem] = useState<Problem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchProblem() {
+      if (!problemId) {
+        setError("No problem ID provided");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Fetch the problem from Supabase
+        const { data, error } = await supabase
+          .from('problems')
+          .select('*')
+          .eq('id', problemId)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching problem:', error);
+          setError("Failed to load the problem. Please try again.");
+        } else if (data) {
+          setProblem(data);
+        } else {
+          setError("Problem not found");
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setError("An unexpected error occurred");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchProblem();
+  }, [problemId]);
+
+  // Show loading state
+  if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-4">Problem not found</h1>
-        <p>The problem you're looking for doesn't exist.</p>
+      <div className="h-screen flex items-center justify-center">
+        <Spinner size="lg" />
+        <span className="ml-2">Loading problem...</span>
       </div>
     );
   }
-  
+
+  // Show error state
+  if (error || !problem) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center">
+        <h2 className="text-xl font-semibold text-red-500 mb-4">
+          {error || "Problem not found"}
+        </h2>
+        <p className="mb-4">
+          We couldn't load the problem you're looking for.
+        </p>
+        <a 
+          href="/problems" 
+          className="text-blue-500 hover:underline"
+        >
+          Return to problems list
+        </a>
+      </div>
+    );
+  }
+
+  // Render solution workspace with the actual problem data
   return (
     <SolutionWorkspace 
       problemId={problem.id} 

@@ -102,4 +102,76 @@ BEGIN
   VALUES 
     (solution1_id, user2_id, 1);
     
-END $$; 
+END $$;
+
+-- Add sample problem_analysis data
+
+-- For the first problem
+INSERT INTO problem_analysis (problem_id, section_id, section_title) 
+VALUES 
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '1', 'Key Constraints'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '2', 'Performance Metrics'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '3', 'Stakeholders');
+
+-- Add items to the Key Constraints section
+INSERT INTO problem_analysis_items (problem_id, section_id, item_id, content)
+VALUES
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '1', '1-1', 'Temperature range: -40°C to +60°C'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '1', '1-2', 'Minimum 85% efficiency across range'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '1', '1-3', 'Cost-effective (within 20% premium)'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '1', '1-4', 'Minimal maintenance');
+
+-- Add items to the Performance Metrics section
+INSERT INTO problem_analysis_items (problem_id, section_id, item_id, content)
+VALUES
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '2', '2-1', 'Energy output consistency'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '2', '2-2', 'Thermal cycling durability'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '2', '2-3', 'Installation complexity'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '2', '2-4', 'Maintenance frequency');
+
+-- Add items to the Stakeholders section
+INSERT INTO problem_analysis_items (problem_id, section_id, item_id, content)
+VALUES
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '3', '3-1', 'End-users'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '3', '3-2', 'Manufacturers'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '3', '3-3', 'Environmental agencies'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), '3', '3-4', 'Regulatory bodies');
+
+-- For the second problem
+INSERT INTO problem_analysis (problem_id, section_id, section_title) 
+VALUES 
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), '1', 'Key Requirements'),
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), '2', 'Success Metrics'),
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), '3', 'Key Stakeholders');
+
+-- Add items to the sections for the second problem
+INSERT INTO problem_analysis_items (problem_id, section_id, item_id, content)
+VALUES
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), '1', '1-1', 'Must include 20-year projection'),
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), '1', '1-2', 'Must account for environmental remediation costs'),
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), '2', '2-1', 'ROI timeline'),
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), '2', '2-2', 'Social impact metrics'),
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), '3', '3-1', 'Investors'),
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), '3', '3-2', 'Community members'),
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), '3', '3-3', 'Local government');
+
+-- Add sample problem_resources data
+
+-- For the first problem (Solar Panel)
+INSERT INTO problem_resources (problem_id, title, type, url, description) 
+VALUES 
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), 'Solar Panel Efficiency Guide', 'document', 'https://example.com/solar-efficiency', 'Comprehensive guide to solar panel efficiency factors and optimization techniques'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), 'Extreme Climate Materials Research', 'website', 'https://example.com/materials', 'Research on materials suitable for extreme temperature conditions'),
+  ((SELECT id FROM problems WHERE title LIKE '%Solar Panel%' LIMIT 1), 'Thermal Management Techniques', 'video', 'https://example.com/thermal-video', 'Video tutorial on passive thermal management systems for solar panels');
+
+-- For the second problem (Financial Model)
+INSERT INTO problem_resources (problem_id, title, type, url, description) 
+VALUES 
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), 'Urban Development Economics', 'document', 'https://example.com/urban-economics', 'Economic principles and models for sustainable urban development'),
+  ((SELECT id FROM problems WHERE title LIKE '%Financial Model%' LIMIT 1), 'Brownfield Redevelopment Dataset', 'dataset', 'https://example.com/brownfield-data', 'Historical data on successful brownfield redevelopment projects');
+
+-- For the third problem (Spacecraft Docking)
+INSERT INTO problem_resources (problem_id, title, type, url, description) 
+VALUES 
+  ((SELECT id FROM problems WHERE title LIKE '%Spacecraft%' LIMIT 1), 'Orbital Mechanics Primer', 'document', 'https://example.com/orbital-mechanics', 'Fundamental principles of orbital mechanics and spacecraft rendezvous'),
+  ((SELECT id FROM problems WHERE title LIKE '%Spacecraft%' LIMIT 1), 'NASA Docking Systems', 'website', 'https://example.com/nasa-docking', 'NASA documentation on spacecraft docking mechanisms and protocols'); 

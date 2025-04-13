@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileText, ExternalLink, Download, Trash2, Copy, Search } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -30,6 +30,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { supabase } from '@/app/lib/supabase';
+import { Spinner } from '@/components/ui/spinner';
 
 // Type for accumulated content - matching the AIAssistantChat type
 type ContentItem = {
@@ -48,6 +50,7 @@ type ExternalResource = {
   type: 'document' | 'website' | 'video' | 'dataset';
   url: string;
   description?: string;
+  problem_id?: string;
 };
 
 interface ResourcesProps {
@@ -62,38 +65,61 @@ export function Resources({
   setAccumulatedContent 
 }: ResourcesProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [externalResources, setExternalResources] = useState<ExternalResource[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  // Sample external resources - in a real app, these would come from an API
-  const [externalResources] = useState<ExternalResource[]>([
-    {
-      id: '1',
-      title: 'Technical Reference Guide',
-      type: 'document',
-      url: '#',
-      description: 'Comprehensive guide to technical specifications and standards.'
-    },
-    {
-      id: '2',
-      title: 'Case Studies',
-      type: 'document',
-      url: '#',
-      description: 'Real-world examples of similar problems and their solutions.'
-    },
-    {
-      id: '3',
-      title: 'Industry Standards',
-      type: 'document',
-      url: '#',
-      description: 'Relevant industry standards and best practices.'
-    },
-    {
-      id: '4',
-      title: 'Research Papers Collection',
-      type: 'dataset',
-      url: '#',
-      description: 'Collection of academic papers related to this problem domain.'
+  // Fetch external resources from Supabase
+  useEffect(() => {
+    async function fetchResources() {
+      if (!problemId) return;
+      
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Fetch resources related to this problem
+        const { data, error } = await supabase
+          .from('problem_resources')
+          .select('*')
+          .eq('problem_id', problemId);
+          
+        if (error) {
+          console.error('Error fetching resources:', error);
+          setError('Failed to load resources');
+        } else if (data && data.length > 0) {
+          setExternalResources(data);
+        } else {
+          // If no resources found, provide some default resources
+          setExternalResources([
+            {
+              id: '1',
+              title: 'Technical Reference Guide',
+              type: 'document',
+              url: '#',
+              description: 'Comprehensive guide to technical specifications and standards.',
+              problem_id: problemId
+            },
+            {
+              id: '2',
+              title: 'Case Studies',
+              type: 'document',
+              url: '#',
+              description: 'Real-world examples of similar problems and their solutions.',
+              problem_id: problemId
+            }
+          ]);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setError('An unexpected error occurred');
+      } finally {
+        setIsLoading(false);
+      }
     }
-  ]);
+    
+    fetchResources();
+  }, [problemId]);
 
   // Format date consistently
   const formatDate = (date: Date) => {
@@ -139,9 +165,33 @@ export function Resources({
     document.body.removeChild(element);
   };
 
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Spinner size="lg" />
+        <span className="ml-2">Loading resources...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center">
+        <h2 className="text-xl font-semibold text-red-500 mb-4">{error}</h2>
+        <p className="mb-4">We couldn't load the resources data.</p>
+        <Button 
+          variant="outline" 
+          onClick={() => window.location.reload()}
+        >
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <Card className="flex flex-col h-full overflow-hidden border-0 shadow-none">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+      <Card className="flex flex-col h-full min-h-0 overflow-hidden border-0 shadow-none">
         <CardHeader className="p-3 border-b shrink-0 bg-white dark:bg-gray-900 z-10">
           <CardTitle className="text-base">Resources</CardTitle>
           <CardDescription>Access problem-related resources and your saved content</CardDescription>
@@ -159,7 +209,7 @@ export function Resources({
           </div>
         </div>
         
-        <Tabs defaultValue="my-content" className="flex-1 min-h-0 flex flex-col">
+        <Tabs defaultValue="my-content" className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <TabsList className="px-3 pt-2 bg-white dark:bg-gray-900 shrink-0">
             <TabsTrigger value="my-content">My Content</TabsTrigger>
             <TabsTrigger value="external-resources">External Resources</TabsTrigger>
@@ -202,7 +252,7 @@ export function Resources({
                       </DropdownMenu>
                     </div>
                     <CardDescription className="text-xs">
-                      {formatDate(item.timestamp)} · {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+                      {formatDate(new Date(item.timestamp))} · {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-3 pt-0">
@@ -248,7 +298,7 @@ export function Resources({
           >
             {filteredResources.length > 0 ? (
               filteredResources.map(resource => (
-                <Card key={resource.id}>
+                <Card key={resource.id} className="overflow-hidden">
                   <CardHeader className="p-3 pb-2">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm font-medium">{resource.title}</CardTitle>

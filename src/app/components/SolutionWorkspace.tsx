@@ -21,6 +21,17 @@ type ContentItem = {
   sourceMessageId?: string;
 };
 
+// Type for Problem
+type Problem = {
+  id: string;
+  title: string;
+  description: string;
+  category: string | string[];
+  difficulty: number;
+  created_at: string | Date;
+  detailed_description?: string;
+};
+
 interface Tab {
   id: string;
   label: string;
@@ -30,9 +41,16 @@ interface Tab {
 
 interface SolutionWorkspaceProps {
   problemId: string;
-  problem: any; // Replace with proper type
+  problem: Problem; // Use the proper Problem type
   backUrl: string;
   children?: ReactNode;
+}
+
+// Props for children with accumulated content
+interface ChildWithAccumulatedContentProps {
+  accumulatedContent: ContentItem[];
+  setAccumulatedContent: React.Dispatch<React.SetStateAction<ContentItem[]>>;
+  problemId: string;
 }
 
 export function SolutionWorkspace({ problemId, problem, backUrl, children }: SolutionWorkspaceProps) {
@@ -57,8 +75,9 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
   const childrenWithProps = children && React.isValidElement(children) 
     ? React.cloneElement(children, {
         accumulatedContent,
-        setAccumulatedContent
-      }) 
+        setAccumulatedContent,
+        problemId
+      } as ChildWithAccumulatedContentProps) 
     : children;
   
   // Sidebar sections configuration
@@ -82,10 +101,12 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
       label: 'Problem Details',
       icon: <BookOpen className="h-5 w-5" />,
       content: (
-        <div className="h-full overflow-y-auto p-4 space-y-4">
-          <h2 className="text-xl font-semibold">{problem.title}</h2>
-          <div className="prose dark:prose-invert">
-            <div dangerouslySetInnerHTML={{ __html: problem.detailed_description }} />
+        <div className="h-full min-h-0 flex flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+            <h2 className="text-xl font-semibold">{problem.title}</h2>
+            <div className="prose dark:prose-invert">
+              <div dangerouslySetInnerHTML={{ __html: problem.detailed_description || '' }} />
+            </div>
           </div>
         </div>
       )
@@ -115,16 +136,18 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
       label: 'Community',
       icon: <List className="h-5 w-5" />,
       content: (
-        <div className="h-full overflow-y-auto p-4">
-          <h2 className="text-xl font-semibold mb-4">Community Solutions</h2>
-          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-md mb-6">
-            <p className="text-sm text-yellow-800">
-              Community solutions will be available after you submit your own solution or after the problem's deadline has passed.
-            </p>
+        <div className="h-full min-h-0 flex flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4">
+            <h2 className="text-xl font-semibold mb-4">Community Solutions</h2>
+            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-md mb-6">
+              <p className="text-sm text-yellow-800">
+                Community solutions will be available after you submit your own solution or after the problem's deadline has passed.
+              </p>
+            </div>
+            <Button className="w-full" variant="outline">
+              Browse Community Solutions
+            </Button>
           </div>
-          <Button className="w-full" variant="outline">
-            Browse Community Solutions
-          </Button>
         </div>
       )
     }
@@ -189,7 +212,7 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
       
       {/* Main content area - flex-1 to take remaining space */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
-        <div className="flex h-full w-full">
+        <div className="flex h-full w-full min-h-0">
           {/* Left sidebar - collapsible */}
           <div className={`border-r flex flex-col bg-white dark:bg-gray-900 h-full ${sidebarCollapsed ? 'w-16' : 'w-64'} transition-all duration-300 shrink-0 z-10`}>
             {/* Sidebar header with toggle button */}
@@ -313,7 +336,7 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
           {/* Main content area */}
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             {/* Problem description area - collapsible */}
-            <div className={`border-b bg-white dark:bg-gray-900 ${minimizedProblem ? 'h-12' : 'h-32'} transition-all duration-300 shrink-0`}>
+            <div className={`border-b bg-white dark:bg-gray-900 ${minimizedProblem ? 'h-12' : ''} transition-all duration-300 shrink-0`}>
               <div className="p-3 flex flex-col h-full">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-wrap items-center gap-2">
@@ -321,7 +344,7 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
                       {problem.title}
                     </h2>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {problem.category}
+                      {Array.isArray(problem.category) ? problem.category[0] : problem.category}
                     </span>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                       Difficulty: {problem.difficulty}/5
@@ -338,7 +361,7 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
                 </div>
                 
                 {!minimizedProblem && (
-                  <div className="mt-2 flex-1 overflow-y-auto text-sm">
+                  <div className="mt-2 flex-1 overflow-y-auto text-sm max-h-[120px]">
                     <p>{problem.description}</p>
                   </div>
                 )}

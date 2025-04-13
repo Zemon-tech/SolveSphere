@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Share, Plus, Trash2, Edit, Save, Check, ChevronRight, ChevronDown } from 'lucide-react';
 import {
@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase } from '@/app/lib/supabase';
+import { Spinner } from '@/components/ui/spinner';
 
 // Analysis section type
 type AnalysisSection = {
@@ -42,42 +44,9 @@ interface AnalysisProps {
 }
 
 export function Analysis({ problemId }: AnalysisProps) {
-  // Initial analysis sections - in a real app, these would come from an API or be generated
-  const [sections, setSections] = useState<AnalysisSection[]>([
-    {
-      id: '1',
-      title: 'Key Constraints',
-      items: [
-        { id: '1-1', content: 'Temperature range: -40°C to +60°C' },
-        { id: '1-2', content: 'Minimum 85% efficiency across range' },
-        { id: '1-3', content: 'Cost-effective (within 20% premium)' },
-        { id: '1-4', content: 'Minimal maintenance' },
-      ],
-      collapsed: false
-    },
-    {
-      id: '2',
-      title: 'Performance Metrics',
-      items: [
-        { id: '2-1', content: 'Energy output consistency' },
-        { id: '2-2', content: 'Thermal cycling durability' },
-        { id: '2-3', content: 'Installation complexity' },
-        { id: '2-4', content: 'Maintenance frequency' },
-      ],
-      collapsed: false
-    },
-    {
-      id: '3',
-      title: 'Stakeholders',
-      items: [
-        { id: '3-1', content: 'End-users' },
-        { id: '3-2', content: 'Manufacturers' },
-        { id: '3-3', content: 'Environmental agencies' },
-        { id: '3-4', content: 'Regulatory bodies' },
-      ],
-      collapsed: false
-    }
-  ]);
+  const [sections, setSections] = useState<AnalysisSection[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // State for new section dialog
   const [isAddSectionDialogOpen, setIsAddSectionDialogOpen] = useState(false);
@@ -91,9 +60,101 @@ export function Analysis({ problemId }: AnalysisProps) {
   // State for editing
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState('');
+
+  // Fetch analysis data from Supabase
+  useEffect(() => {
+    async function fetchAnalysis() {
+      if (!problemId) return;
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Here, you would fetch the actual analysis from your database
+        // For example:
+        const { data, error } = await supabase
+          .from('problem_analysis')
+          .select('*')
+          .eq('problem_id', problemId);
+          
+        if (error) {
+          console.error('Error fetching analysis:', error);
+          setError('Failed to load analysis data');
+        } else if (data && data.length > 0) {
+          // Transform the data into our section/item format
+          // This will depend on your actual database structure
+          
+          // Example transformation assuming a flat structure:
+          const transformedData = transformAnalysisData(data);
+          setSections(transformedData);
+        } else {
+          // If no data, initialize with some empty default sections
+          setSections([
+            {
+              id: '1',
+              title: 'Key Constraints',
+              items: [],
+              collapsed: false
+            },
+            {
+              id: '2',
+              title: 'Performance Metrics',
+              items: [],
+              collapsed: false
+            },
+            {
+              id: '3',
+              title: 'Stakeholders',
+              items: [],
+              collapsed: false
+            }
+          ]);
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setError('An unexpected error occurred');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchAnalysis();
+  }, [problemId]);
+
+  // Helper function to transform data from database to our format
+  // This will need to be adjusted based on your actual database schema
+  const transformAnalysisData = (data: any[]): AnalysisSection[] => {
+    // Example transformation logic - adjust as needed
+    const sectionMap = new Map<string, AnalysisSection>();
+    
+    data.forEach(item => {
+      const sectionId = item.section_id || item.id;
+      const sectionTitle = item.section_title || 'Untitled Section';
+      
+      if (!sectionMap.has(sectionId)) {
+        sectionMap.set(sectionId, {
+          id: sectionId,
+          title: sectionTitle,
+          items: [],
+          collapsed: false
+        });
+      }
+      
+      // Add items if they exist
+      if (item.content) {
+        const section = sectionMap.get(sectionId)!;
+        section.items.push({
+          id: `${sectionId}-item-${section.items.length + 1}`,
+          content: item.content
+        });
+      }
+    });
+    
+    return Array.from(sectionMap.values());
+  };
   
   // Add a new section
-  const handleAddSection = () => {
+  const handleAddSection = async () => {
     if (!newSectionTitle.trim()) return;
     
     const newSection: AnalysisSection = {
@@ -104,17 +165,42 @@ export function Analysis({ problemId }: AnalysisProps) {
     };
     
     setSections([...sections, newSection]);
+    
+    // Save to Supabase
+    try {
+      await supabase.from('problem_analysis').insert({
+        problem_id: problemId,
+        section_id: newSection.id,
+        section_title: newSection.title,
+      });
+    } catch (error) {
+      console.error('Error saving section:', error);
+    }
+    
     setNewSectionTitle('');
     setIsAddSectionDialogOpen(false);
   };
   
   // Delete a section
-  const handleDeleteSection = (sectionId: string) => {
+  const handleDeleteSection = async (sectionId: string) => {
     setSections(sections.filter(section => section.id !== sectionId));
+    
+    // Delete from Supabase
+    try {
+      await supabase
+        .from('problem_analysis')
+        .delete()
+        .match({ 
+          problem_id: problemId,
+          section_id: sectionId 
+        });
+    } catch (error) {
+      console.error('Error deleting section:', error);
+    }
   };
   
   // Add a new item to a section
-  const handleAddItem = () => {
+  const handleAddItem = async () => {
     if (!newItemContent.trim() || !activeSection) return;
     
     const newItem: AnalysisItem = {
@@ -132,6 +218,18 @@ export function Analysis({ problemId }: AnalysisProps) {
       return section;
     }));
     
+    // Save to Supabase
+    try {
+      await supabase.from('problem_analysis_items').insert({
+        problem_id: problemId,
+        section_id: activeSection,
+        item_id: newItem.id,
+        content: newItem.content
+      });
+    } catch (error) {
+      console.error('Error saving item:', error);
+    }
+    
     setNewItemContent('');
     setIsAddItemDialogOpen(false);
   };
@@ -143,7 +241,7 @@ export function Analysis({ problemId }: AnalysisProps) {
   };
   
   // Save edited item
-  const handleSaveEditItem = (sectionId: string) => {
+  const handleSaveEditItem = async (sectionId: string) => {
     if (!editingItemId) return;
     
     setSections(sections.map(section => {
@@ -164,11 +262,25 @@ export function Analysis({ problemId }: AnalysisProps) {
       return section;
     }));
     
+    // Update in Supabase
+    try {
+      await supabase
+        .from('problem_analysis_items')
+        .update({ content: editingContent })
+        .match({ 
+          problem_id: problemId,
+          section_id: sectionId,
+          item_id: editingItemId 
+        });
+    } catch (error) {
+      console.error('Error updating item:', error);
+    }
+    
     setEditingItemId(null);
   };
   
   // Delete an item
-  const handleDeleteItem = (sectionId: string, itemId: string) => {
+  const handleDeleteItem = async (sectionId: string, itemId: string) => {
     setSections(sections.map(section => {
       if (section.id === sectionId) {
         return {
@@ -178,6 +290,20 @@ export function Analysis({ problemId }: AnalysisProps) {
       }
       return section;
     }));
+    
+    // Delete from Supabase
+    try {
+      await supabase
+        .from('problem_analysis_items')
+        .delete()
+        .match({ 
+          problem_id: problemId,
+          section_id: sectionId,
+          item_id: itemId 
+        });
+    } catch (error) {
+      console.error('Error deleting item:', error);
+    }
   };
   
   // Toggle section collapse
@@ -193,9 +319,70 @@ export function Analysis({ problemId }: AnalysisProps) {
     }));
   };
 
+  // Save all analysis data
+  const handleSaveAnalysis = async () => {
+    try {
+      // You could save the entire analysis state here if needed
+      console.log('Saving analysis:', sections);
+      
+      // Example approach to save all sections and items
+      for (const section of sections) {
+        // Upsert the section
+        await supabase
+          .from('problem_analysis')
+          .upsert({
+            problem_id: problemId,
+            section_id: section.id,
+            section_title: section.title,
+          });
+          
+        // Handle items
+        for (const item of section.items) {
+          await supabase
+            .from('problem_analysis_items')
+            .upsert({
+              problem_id: problemId,
+              section_id: section.id,
+              item_id: item.id,
+              content: item.content
+            });
+        }
+      }
+      
+      // Show success notification (you could add a toast here)
+    } catch (error) {
+      console.error('Error saving analysis:', error);
+      // Show error notification
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Spinner size="lg" />
+        <span className="ml-2">Loading analysis...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center">
+        <h2 className="text-xl font-semibold text-red-500 mb-4">{error}</h2>
+        <p className="mb-4">We couldn't load the analysis data.</p>
+        <Button 
+          variant="outline" 
+          onClick={() => window.location.reload()}
+        >
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <Card className="flex flex-col h-full overflow-hidden border-0 shadow-none">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+      <Card className="flex flex-col h-full min-h-0 overflow-hidden border-0 shadow-none">
         <CardHeader className="p-3 border-b shrink-0 bg-white dark:bg-gray-900 z-10">
           <div className="flex items-center justify-between">
             <div>
@@ -313,7 +500,7 @@ export function Analysis({ problemId }: AnalysisProps) {
                 </div>
                 
                 {!section.collapsed && (
-                  <ul className="divide-y">
+                  <ul className="divide-y max-h-[300px] overflow-y-auto">
                     {section.items.map((item) => (
                       <li key={item.id} className="p-3 flex items-start gap-3">
                         {editingItemId === item.id ? (
@@ -397,11 +584,7 @@ export function Analysis({ problemId }: AnalysisProps) {
             variant="outline"
             size="sm"
             className="flex items-center gap-1"
-            onClick={() => {
-              // In a real app, this would save to backend
-              console.log('Saving analysis:', sections);
-              // You could add a toast notification here
-            }}
+            onClick={handleSaveAnalysis}
           >
             <Save className="h-3.5 w-3.5" />
             <span>Save Analysis</span>

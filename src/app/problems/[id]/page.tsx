@@ -4,9 +4,12 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { use } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/app/lib/supabase';
+import { useParams } from 'next/navigation';
+import React from 'react';
 
-// Mock data for problems (would come from API in a real app)
+// Fallback mock data in case the problem is not found in the database
 const mockProblems = [
   {
     id: '1',
@@ -59,6 +62,17 @@ Design a solar panel system that can:
   },
 ];
 
+// Type for Problem
+type Problem = {
+  id: string;
+  title: string;
+  description: string;
+  category: string[];
+  difficulty: number;
+  created_at: string;
+  detailed_description?: string;
+};
+
 // Helper function to render difficulty level
 function DifficultyBadge({ level }: { level: number }) {
   const colors = {
@@ -97,7 +111,8 @@ function CategoryBadge({ category }: { category: string }) {
 }
 
 // Function to format date
-function formatDate(date: Date) {
+function formatDate(dateString: string) {
+  const date = new Date(dateString);
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -127,13 +142,77 @@ const MarkdownComponents = {
   hr: (props: any) => <hr className="my-6 border-gray-300 dark:border-gray-700" {...props} />,
 };
 
-export default function ProblemPage({ params }: { params: Promise<{ id: string }> }) {
-  // Unwrap the params Promise
-  const resolvedParams = use(params);
+export default function ProblemPage() {
+  const params = useParams();
+  const problemId = params.id as string;
   
-  // In a real app, this would fetch data from an API
-  const problem = mockProblems.find(p => p.id === resolvedParams.id);
-  
+  const [problem, setProblem] = useState<Problem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [relatedProblems, setRelatedProblems] = useState<Problem[]>([]);
+
+  useEffect(() => {
+    const fetchProblem = async () => {
+      try {
+        setLoading(true);
+        // Fetch the specific problem
+        const { data, error } = await supabase
+          .from('problems')
+          .select('*')
+          .eq('id', problemId)
+          .single();
+
+        if (error) {
+          console.error('Error fetching problem:', error);
+          // Use mock data as fallback
+          const mockProblem = mockProblems.find(p => p.id === problemId);
+          setProblem(mockProblem as any || null);
+        } else {
+          setProblem(data);
+
+          // Fetch related problems by category
+          if (data && data.category && data.category.length > 0) {
+            const mainCategory = Array.isArray(data.category) ? data.category[0] : data.category;
+            const { data: relatedData, error: relatedError } = await supabase
+              .from('problems')
+              .select('*')
+              .neq('id', problemId)
+              .filter('category', 'cs', `{${mainCategory}}`)
+              .limit(2);
+
+            if (!relatedError && relatedData && relatedData.length > 0) {
+              setRelatedProblems(relatedData);
+            } else {
+              // Fallback to mock related problems
+              setRelatedProblems(
+                mockProblems
+                  .filter(p => p.id !== problemId)
+                  .slice(0, 2) as any
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetching problem:', error);
+        // Use mock data as fallback
+        const mockProblem = mockProblems.find(p => p.id === problemId);
+        setProblem(mockProblem as any || null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProblem();
+  }, [problemId]);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+        <p className="mt-4">Loading problem...</p>
+      </div>
+    );
+  }
+
   if (!problem) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -170,8 +249,13 @@ export default function ProblemPage({ params }: { params: Promise<{ id: string }
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">{problem.title}</h1>
-          <div className="flex gap-2 mb-4">
-            <CategoryBadge category={problem.category} />
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {Array.isArray(problem.category) 
+              ? problem.category.map((cat, index) => (
+                  <CategoryBadge key={index} category={cat} />
+                ))
+              : problem.category && <CategoryBadge category={problem.category as string} />
+            }
             <DifficultyBadge level={problem.difficulty} />
             <span className="text-gray-500 text-sm">Posted on {formatDate(problem.created_at)}</span>
           </div>
@@ -206,7 +290,7 @@ export default function ProblemPage({ params }: { params: Promise<{ id: string }
             remarkPlugins={[remarkGfm]}
             components={MarkdownComponents}
           >
-            {problem.detailed_description}
+            {problem.detailed_description || '*No detailed description provided for this problem.*'}
           </ReactMarkdown>
         </div>
       </div>
@@ -214,24 +298,26 @@ export default function ProblemPage({ params }: { params: Promise<{ id: string }
       <div className="mt-10 border-t pt-6">
         <h2 className="text-2xl font-bold mb-4">Related Problems</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {mockProblems
-            .filter(p => p.id !== problem.id && p.category === problem.category)
-            .slice(0, 2)
-            .map(p => (
-              <div key={p.id} className="border rounded-lg p-4">
-                <div className="flex gap-2 mb-2">
-                  <CategoryBadge category={p.category} />
-                  <DifficultyBadge level={p.difficulty} />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{p.title}</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-                  {p.description.length > 100 ? `${p.description.substring(0, 100)}...` : p.description}
-                </p>
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/problems/${p.id}`}>View Problem</Link>
-                </Button>
+          {relatedProblems.map((p) => (
+            <div key={p.id} className="border rounded-lg p-4">
+              <div className="flex gap-2 mb-2 flex-wrap">
+                {Array.isArray(p.category) 
+                  ? p.category.map((cat, index) => (
+                      <CategoryBadge key={index} category={cat} />
+                    ))
+                  : p.category && <CategoryBadge category={p.category as string} />
+                }
+                <DifficultyBadge level={p.difficulty} />
               </div>
-            ))}
+              <h3 className="text-lg font-semibold mb-2">{p.title}</h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                {p.description.length > 100 ? `${p.description.substring(0, 100)}...` : p.description}
+              </p>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/problems/${p.id}`}>View Problem</Link>
+              </Button>
+            </div>
+          ))}
         </div>
       </div>
     </div>

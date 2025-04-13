@@ -65,33 +65,24 @@ export function AIAssistantChat({
 }: AIAssistantChatProps) {
   const [messages, setMessages] = useState<MessageType[]>([
     {
-      id: '1',
+      id: 'system-1',
       role: 'system',
-      content: 'Welcome to SolveSphere AI Assistant',
-      timestamp: new Date(),
+      content: `You are an AI assistant helping with problem solving. The problem being solved is: ${problemTitle}. Provide step-by-step help but don't solve the entire problem.`,
+      timestamp: new Date()
     },
     {
-      id: '2',
+      id: 'assistant-1',
       role: 'assistant',
-      content: `I'm your AI problem-solving assistant for **${problemTitle || 'this problem'}**. I can help guide you through the problem without giving away the solution directly.
-
-Some ways I can help:
-- Break down complex problems into manageable parts
-- Ask probing questions to help you think critically
-- Suggest approaches to consider
-- Provide relevant information when needed
-- Help you evaluate your own solutions
-
-How would you like to approach this problem?`,
-      timestamp: new Date(),
-    },
+      content: `Hello! I'm here to help you work through the "${problemTitle}" problem. I'll guide you through the problem-solving process without giving away the full solution. Feel free to ask questions or request hints at any stage. How would you like to begin?`,
+      timestamp: new Date()
+    }
   ]);
-
-  // State for accumulated content - use props if provided, otherwise use local state
+  
+  // Local state for when props aren't provided
   const [localAccumulatedContent, setLocalAccumulatedContent] = useState<ContentItem[]>([]);
   
-  // Use either the prop functions or the local state functions
-  const accumulatedContent = propAccumulatedContent !== undefined ? propAccumulatedContent : localAccumulatedContent;
+  // Use either the props or local state
+  const accumulatedContent = propAccumulatedContent || localAccumulatedContent;
   const setAccumulatedContent = propSetAccumulatedContent || setLocalAccumulatedContent;
   
   const [showAccumulationPanel, setShowAccumulationPanel] = useState<boolean>(true);
@@ -343,7 +334,7 @@ How would you like to approach this problem?`,
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
       {/* Chat header - fixed at top */}
       <div className="shrink-0 p-3 border-b flex items-center justify-between bg-white dark:bg-gray-900 z-10">
         <div className="flex items-center gap-2">
@@ -478,11 +469,11 @@ How would you like to approach this problem?`,
         
         {/* Accumulation panel */}
         {showAccumulationPanel && (
-          <div className="w-2/5 border-l bg-white dark:bg-gray-900 flex flex-col h-full min-h-0">
+          <div className="w-2/5 min-w-[300px] border-l bg-white dark:bg-gray-900 flex flex-col h-full min-h-0 overflow-hidden">
             <div className="shrink-0 p-3 border-b">
               <h3 className="font-semibold text-sm">Accumulated Content</h3>
             </div>
-            <Tabs defaultValue="visuals" className="flex-1 min-h-0 flex flex-col">
+            <Tabs defaultValue="visuals" className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <TabsList className="shrink-0 mx-3 mt-2 mb-1 grid grid-cols-4">
                 <TabsTrigger value="visuals" className="text-xs flex items-center gap-1">
                   <Image className="h-3 w-3" />
@@ -502,7 +493,7 @@ How would you like to approach this problem?`,
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="visuals" className="flex-1 overflow-y-auto p-3 space-y-3">
+              <TabsContent value="visuals" className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
                 {accumulatedContent.filter(item => item.type === 'image' || item.type === 'flowchart').length > 0 ? (
                   accumulatedContent
                     .filter(item => item.type === 'image' || item.type === 'flowchart')
@@ -519,7 +510,7 @@ How would you like to approach this problem?`,
                 )}
               </TabsContent>
               
-              <TabsContent value="data" className="flex-1 overflow-y-auto p-3 space-y-3">
+              <TabsContent value="data" className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
                 {accumulatedContent.filter(item => item.type === 'graph' || item.type === 'table' || item.type === 'formula').length > 0 ? (
                   accumulatedContent
                     .filter(item => item.type === 'graph' || item.type === 'table' || item.type === 'formula')
@@ -553,7 +544,7 @@ How would you like to approach this problem?`,
                 )}
               </TabsContent>
               
-              <TabsContent value="research" className="flex-1 overflow-y-auto p-3 space-y-3">
+              <TabsContent value="research" className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
                 {accumulatedContent.filter(item => item.type === 'research').length > 0 ? (
                   accumulatedContent
                     .filter(item => item.type === 'research')
@@ -574,7 +565,7 @@ How would you like to approach this problem?`,
                 )}
               </TabsContent>
               
-              <TabsContent value="notes" className="flex-1 overflow-y-auto p-3 space-y-3">
+              <TabsContent value="notes" className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
                 {accumulatedContent.filter(item => item.type === 'note').length > 0 ? (
                   accumulatedContent
                     .filter(item => item.type === 'note')

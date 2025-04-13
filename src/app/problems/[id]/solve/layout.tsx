@@ -28,6 +28,13 @@ export default function SolveLayout({
         body.solve-page nav {
           display: none !important;
         }
+        .solve-page-wrapper {
+          height: 100vh;
+          width: 100%;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
       `;
       document.head.appendChild(style);
     }
@@ -41,7 +48,7 @@ export default function SolveLayout({
   }, []);
 
   return (
-    <div className="h-screen w-full overflow-hidden">
+    <div className="solve-page-wrapper">
       {children}
     </div>
   );

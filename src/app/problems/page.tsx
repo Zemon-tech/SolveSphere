@@ -1,8 +1,12 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/app/lib/supabase';
 
-// Mock data for problems (would come from API in a real app)
+// Fallback mock data in case no problems are found in the database
 const mockProblems = [
   {
     id: '1',
@@ -54,6 +58,17 @@ const mockProblems = [
   },
 ];
 
+// Type for Problem
+type Problem = {
+  id: string;
+  title: string;
+  description: string;
+  category: string[];
+  difficulty: number;
+  created_at: string;
+  detailed_description?: string;
+};
+
 // Helper function to render difficulty level
 function DifficultyBadge({ level }: { level: number }) {
   const colors = {
@@ -92,6 +107,38 @@ function CategoryBadge({ category }: { category: string }) {
 }
 
 export default function ProblemsPage() {
+  const [problems, setProblems] = useState<Problem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch problems from the database
+    const fetchProblems = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('problems')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching problems:', error);
+          // Use mock data as fallback
+          setProblems(mockProblems as any);
+        } else {
+          // Use real data if available, otherwise fallback to mock data
+          setProblems(data.length > 0 ? data : mockProblems as any);
+        }
+      } catch (error) {
+        console.error('Error in fetching problems:', error);
+        setProblems(mockProblems as any);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProblems();
+  }, []);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
@@ -106,30 +153,42 @@ export default function ProblemsPage() {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockProblems.map((problem) => (
-          <Card key={problem.id} className="flex flex-col h-full">
-            <CardHeader>
-              <div className="flex gap-2 mb-2">
-                <CategoryBadge category={problem.category} />
-                <DifficultyBadge level={problem.difficulty} />
-              </div>
-              <CardTitle>{problem.title}</CardTitle>
-              <CardDescription>
-                {problem.description.length > 120
-                  ? `${problem.description.substring(0, 120)}...`
-                  : problem.description}
-              </CardDescription>
-            </CardHeader>
-            <CardContent></CardContent>
-            <CardFooter className="border-t pt-6">
-              <Button asChild className="w-full">
-                <Link href={`/problems/${problem.id}`}>View Challenge</Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+      {loading ? (
+        <div className="text-center py-10">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+          <p className="mt-4">Loading problems...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {problems.map((problem) => (
+            <Card key={problem.id} className="flex flex-col h-full">
+              <CardHeader>
+                <div className="flex gap-2 mb-2 flex-wrap">
+                  {Array.isArray(problem.category) 
+                    ? problem.category.map((cat, index) => (
+                        <CategoryBadge key={index} category={cat} />
+                      ))
+                    : problem.category && <CategoryBadge category={problem.category as string} />
+                  }
+                  <DifficultyBadge level={problem.difficulty} />
+                </div>
+                <CardTitle className="line-clamp-2">{problem.title}</CardTitle>
+                <CardDescription>
+                  {problem.description.length > 120
+                    ? `${problem.description.substring(0, 120)}...`
+                    : problem.description}
+                </CardDescription>
+              </CardHeader>
+              <CardContent></CardContent>
+              <CardFooter className="border-t pt-6 mt-auto">
+                <Button asChild className="w-full">
+                  <Link href={`/problems/${problem.id}`}>View Challenge</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 } 

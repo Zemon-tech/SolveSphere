@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -139,18 +139,24 @@ export default function AdminProblemsPage() {
       // Clean up empty categories
       const cleanedCategories = newProblem.category.filter(cat => cat.trim() !== '');
       
+      // Ensure we always have at least one category - use "General" as default if none provided
+      const categoriesToSave = cleanedCategories.length > 0 ? cleanedCategories : ["General"];
+      
       const { error } = await supabase
         .from('problems')
         .insert([
           {
             title: newProblem.title,
             description: newProblem.description,
-            category: cleanedCategories.length > 0 ? cleanedCategories : null,
+            category: categoriesToSave,
             difficulty: newProblem.difficulty,
           },
         ]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error adding problem:', error);
+        throw error;
+      }
       
       // Show success toast
       toast.success('Problem added successfully!');
@@ -236,6 +242,9 @@ export default function AdminProblemsPage() {
           <DialogContent className="max-w-[90vw] h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle className="text-2xl">Add New Problem</DialogTitle>
+              <DialogDescription>
+                Fill out the form below to create a new problem for users to solve.
+              </DialogDescription>
             </DialogHeader>
             <div className="grid gap-6 py-4 overflow-y-auto flex-grow">
               <div className="grid grid-cols-5 items-start gap-4">

@@ -27,8 +27,8 @@ export function SolutionEditor({ problemId, initialContent = '', onSave }: Solut
   };
   
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <Card className="flex flex-col h-full overflow-hidden border-0 shadow-none">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+      <Card className="flex flex-col h-full min-h-0 overflow-hidden border-0 shadow-none">
         <CardHeader className="p-3 border-b shrink-0 bg-white dark:bg-gray-900 z-10">
           <CardTitle className="text-base">Your Solution</CardTitle>
         </CardHeader>
