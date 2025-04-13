@@ -40,6 +40,7 @@ type Problem = {
   difficulty: number;
   created_at: string;
   updated_at: string;
+  detailed_description?: string;
 };
 
 // Helper function to render category badges
@@ -69,6 +70,7 @@ export default function AdminProblemsPage() {
     description: '',
     category: [''],
     difficulty: 1,
+    detailed_description: '',
   });
   const [categoryInput, setCategoryInput] = useState('');
   const { user, isLoading } = useSupabase();
@@ -150,6 +152,7 @@ export default function AdminProblemsPage() {
             description: newProblem.description,
             category: categoriesToSave,
             difficulty: newProblem.difficulty,
+            detailed_description: newProblem.detailed_description,
           },
         ]);
 
@@ -167,6 +170,7 @@ export default function AdminProblemsPage() {
         description: '',
         category: [''],
         difficulty: 1,
+        detailed_description: '',
       });
       setCategoryInput('');
       
@@ -247,8 +251,8 @@ export default function AdminProblemsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-6 py-4 overflow-y-auto flex-grow">
-              <div className="grid grid-cols-5 items-start gap-4">
-                <Label htmlFor="title" className="text-right mt-2">
+              <div className="space-y-2">
+                <Label htmlFor="title">
                   Title
                 </Label>
                 <Input
@@ -256,11 +260,10 @@ export default function AdminProblemsPage() {
                   name="title"
                   value={newProblem.title}
                   onChange={handleInputChange}
-                  className="col-span-4"
                 />
               </div>
-              <div className="grid grid-cols-5 items-start gap-4">
-                <Label htmlFor="description" className="text-right mt-2">
+              <div className="space-y-2">
+                <Label htmlFor="description">
                   Description
                 </Label>
                 <Textarea
@@ -268,14 +271,30 @@ export default function AdminProblemsPage() {
                   name="description"
                   value={newProblem.description}
                   onChange={handleInputChange}
-                  className="col-span-4 min-h-[200px]"
+                  className="min-h-[200px]"
                 />
               </div>
-              <div className="grid grid-cols-5 items-start gap-4">
-                <Label htmlFor="category" className="text-right mt-2">
+              <div className="space-y-2">
+                <Label htmlFor="detailed_description">
+                  Detailed Description
+                </Label>
+                <Textarea
+                  id="detailed_description"
+                  name="detailed_description"
+                  value={newProblem.detailed_description}
+                  onChange={handleInputChange}
+                  className="min-h-[300px]"
+                  placeholder="Enter the detailed problem description in markdown format"
+                />
+                <div className="text-sm text-gray-500 mt-1">
+                  Markdown formatting is supported. This will be displayed on the problem details page.
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">
                   Categories
                 </Label>
-                <div className="col-span-4 space-y-2">
+                <div className="space-y-2">
                   <div className="flex gap-2">
                     <Input
                       id="category"
@@ -306,24 +325,22 @@ export default function AdminProblemsPage() {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-5 items-start gap-4">
-                <Label htmlFor="difficulty" className="text-right mt-2">
+              <div className="space-y-2">
+                <Label htmlFor="difficulty">
                   Difficulty (1-5)
                 </Label>
-                <div className="col-span-4">
-                  <Input
-                    id="difficulty"
-                    name="difficulty"
-                    type="number"
-                    min="1"
-                    max="5"
-                    value={newProblem.difficulty}
-                    onChange={handleInputChange}
-                    className="w-24"
-                  />
-                  <div className="mt-2 text-sm text-gray-500">
-                    1 = Beginner, 2 = Easy, 3 = Intermediate, 4 = Advanced, 5 = Expert
-                  </div>
+                <Input
+                  id="difficulty"
+                  name="difficulty"
+                  type="number"
+                  min="1"
+                  max="5"
+                  value={newProblem.difficulty}
+                  onChange={handleInputChange}
+                  className="w-24"
+                />
+                <div className="text-sm text-gray-500">
+                  1 = Beginner, 2 = Easy, 3 = Intermediate, 4 = Advanced, 5 = Expert
                 </div>
               </div>
             </div>

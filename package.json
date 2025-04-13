@@ -28,6 +28,7 @@
     "@radix-ui/react-tooltip": "^1.2.0",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.49.4",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "axios": "^1.8.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -40,6 +41,7 @@
     "react-hot-toast": "^2.5.2",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^2.1.7",
+    "react-syntax-highlighter": "^15.6.1",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
@@ -50,6 +52,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
