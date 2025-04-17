@@ -25,6 +25,8 @@ import axios from 'axios';
 import { MermaidDiagram } from './MermaidDiagram';
 import { MarkdownTable } from './MarkdownTable';
 import { markdownComponents } from './CustomMarkdownComponents';
+import { supabase } from '@/app/lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 // Optional prism.js for code highlighting
 // import Prism from 'prismjs';
@@ -38,6 +40,7 @@ interface AIAssistantChatProps {
   problemTitle?: string;
   accumulatedContent?: ContentItem[];
   setAccumulatedContent?: React.Dispatch<React.SetStateAction<ContentItem[]>>;
+  solutionId: string;
 }
 
 // Type for message content
@@ -66,9 +69,10 @@ export function AIAssistantChat({
   problemId, 
   problemTitle,
   accumulatedContent: propAccumulatedContent,
-  setAccumulatedContent: propSetAccumulatedContent
+  setAccumulatedContent: propSetAccumulatedContent,
+  solutionId: propSolutionId
 }: AIAssistantChatProps) {
-  const [messages, setMessages] = useState<MessageType[]>([
+  const [initialMessages] = useState<MessageType[]>([
     {
       id: 'system-1',
       role: 'system',
@@ -83,6 +87,8 @@ export function AIAssistantChat({
     }
   ]);
   
+  const [messages, setMessages] = useState<MessageType[]>(initialMessages);
+  
   // Local state for when props aren't provided
   const [localAccumulatedContent, setLocalAccumulatedContent] = useState<ContentItem[]>([]);
   
@@ -95,11 +101,104 @@ export function AIAssistantChat({
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isGeneratingSolution, setIsGeneratingSolution] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [solutionId, setSolutionId] = useState<string | null>(propSolutionId);
+  const [isLoadingConversation, setIsLoadingConversation] = useState(true);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load existing conversation or create a new one
+  useEffect(() => {
+    const loadConversation = async () => {
+      if (!problemId) {
+        setIsLoadingConversation(false);
+        return;
+      }
+
+      try {
+        // Get current user
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !userData?.user) {
+          console.error('User not authenticated:', userError);
+          setIsLoadingConversation(false);
+          return;
+        }
+
+        // First, get the solution ID for this problem and user
+        const { data: solutionData, error: solutionError } = await supabase
+          .from('solutions')
+          .select('id')
+          .eq('problem_id', problemId)
+          .eq('user_id', userData.user.id)
+          .single();
+        
+        if (solutionError || !solutionData) {
+          console.error('Solution not found:', solutionError);
+          setIsLoadingConversation(false);
+          return;
+        }
+
+        setSolutionId(solutionData.id);
+
+        // Then, check if there's an existing conversation
+        const { data: conversationData, error: conversationError } = await supabase
+          .from('ai_conversations')
+          .select('id, messages')
+          .eq('solution_id', solutionData.id)
+          .single();
+        
+        if (conversationError && conversationError.code !== 'PGRST116') {
+          // PGRST116 means no rows returned, which is expected for a new conversation
+          console.error('Error fetching conversation:', conversationError);
+        }
+
+        if (conversationData) {
+          // Load existing conversation
+          setConversationId(conversationData.id);
+          
+          // Parse messages if they exist and are not empty
+          if (conversationData.messages && Array.isArray(conversationData.messages) && conversationData.messages.length > 0) {
+            // Convert timestamps from strings back to Date objects
+            const parsedMessages = conversationData.messages.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp)
+            }));
+            
+            setMessages([
+              initialMessages[0], // Keep the system message
+              ...parsedMessages.filter((msg: MessageType) => msg.role !== 'system') // Filter out any system messages from saved data
+            ]);
+          }
+        } else {
+          // Create a new conversation
+          const newConversationId = uuidv4();
+          const { error: createError } = await supabase
+            .from('ai_conversations')
+            .insert({
+              id: newConversationId,
+              solution_id: solutionData.id,
+              messages: [initialMessages[1]] // Only save the initial assistant message, not the system message
+            });
+          
+          if (createError) {
+            console.error('Error creating conversation:', createError);
+          } else {
+            setConversationId(newConversationId);
+          }
+        }
+      } catch (error) {
+        console.error('Error in loadConversation:', error);
+      } finally {
+        setIsLoadingConversation(false);
+      }
+    };
+
+    loadConversation();
+  }, [problemId, initialMessages]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -113,6 +212,36 @@ export function AIAssistantChat({
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
   }, [input]);
+
+  // Save messages to Supabase when they change
+  useEffect(() => {
+    const saveConversation = async () => {
+      if (!conversationId || isLoadingConversation || messages.length <= 2) {
+        return; // Don't save if conversation is still loading or only has initial messages
+      }
+
+      try {
+        // Only save messages that aren't system messages (to reduce storage)
+        const messagesToSave = messages.filter(msg => msg.role !== 'system');
+        
+        const { error } = await supabase
+          .from('ai_conversations')
+          .update({
+            messages: messagesToSave,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', conversationId);
+        
+        if (error) {
+          console.error('Error saving conversation:', error);
+        }
+      } catch (error) {
+        console.error('Error in saveConversation:', error);
+      }
+    };
+
+    saveConversation();
+  }, [messages, conversationId, isLoadingConversation]);
 
   // Format timestamp consistently for both server and client
   const formatTimestamp = (date: Date) => {
@@ -475,97 +604,106 @@ export function AIAssistantChat({
           ref={chatContainerRef}
           className={`flex-1 min-h-0 overflow-y-auto py-4 px-4 space-y-4 bg-gray-50 dark:bg-gray-900/50 ${showAccumulationPanel ? 'w-3/5' : 'w-full'}`}
         >
-          {messages.filter(m => m.role !== 'system').map((message) => (
-            <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] rounded-lg ${
-                message.role === 'user' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border shadow-sm'
-              }`}>
-                <div className="p-3">
-                  {message.role === 'user' ? (
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-                  ) : (
-                    <div className="prose dark:prose-invert prose-sm max-w-none">
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
-                        components={markdownComponents}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
+          {isLoadingConversation ? (
+            <div className="flex items-center justify-center h-20">
+              <div className="h-5 w-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
+              <span className="ml-2 text-sm text-gray-500">Loading conversation...</span>
+            </div>
+          ) : (
+            <>
+              {messages.filter(m => m.role !== 'system').map((message) => (
+                <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] rounded-lg ${
+                    message.role === 'user' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border shadow-sm'
+                  }`}>
+                    <div className="p-3">
+                      {message.role === 'user' ? (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      ) : (
+                        <div className="prose dark:prose-invert prose-sm max-w-none">
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm, remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
+                            components={markdownComponents}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      )}
                     </div>
-                  )}
+                    <div className={`flex items-center justify-between px-3 py-1.5 border-t ${
+                      message.role === 'user'
+                        ? 'border-blue-500'
+                        : 'border-gray-100 dark:border-gray-700'
+                    }`}>
+                      <span className="text-xs opacity-70">
+                        {formatTimestamp(message.timestamp)}
+                      </span>
+                      
+                      {message.role === 'assistant' && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <MoreVertical className="h-3 w-3" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => {
+                              navigator.clipboard.writeText(message.content);
+                              // You can add a toast notification here if you have a toast system
+                            }}>
+                              <Copy className="h-3.5 w-3.5 mr-2" />
+                              <span>Copy text</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              // Add this message as a note in accumulated content
+                              const newNote: ContentItem = {
+                                id: `note-${Date.now()}`,
+                                type: 'note',
+                                content: message.content,
+                                title: `Note from AI (${formatTimestamp(message.timestamp)})`,
+                                timestamp: new Date(),
+                                sourceMessageId: message.id
+                              };
+                              setAccumulatedContent(prev => [...prev, newNote]);
+                              // You can add a toast notification here if you have a toast system
+                            }}>
+                              <Download className="h-3.5 w-3.5 mr-2" />
+                              <span>Save as note</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-red-500 dark:text-red-400"
+                              onClick={() => {
+                                // Delete this message
+                                setMessages(prev => prev.filter(m => m.id !== message.id));
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-2" />
+                              <span>Delete</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className={`flex items-center justify-between px-3 py-1.5 border-t ${
-                  message.role === 'user'
-                    ? 'border-blue-500'
-                    : 'border-gray-100 dark:border-gray-700'
-                }`}>
-                  <span className="text-xs opacity-70">
-                    {formatTimestamp(message.timestamp)}
-                  </span>
-                  
-                  {message.role === 'assistant' && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                          <MoreVertical className="h-3 w-3" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => {
-                          navigator.clipboard.writeText(message.content);
-                          // You can add a toast notification here if you have a toast system
-                        }}>
-                          <Copy className="h-3.5 w-3.5 mr-2" />
-                          <span>Copy text</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          // Add this message as a note in accumulated content
-                          const newNote: ContentItem = {
-                            id: `note-${Date.now()}`,
-                            type: 'note',
-                            content: message.content,
-                            title: `Note from AI (${formatTimestamp(message.timestamp)})`,
-                            timestamp: new Date(),
-                            sourceMessageId: message.id
-                          };
-                          setAccumulatedContent(prev => [...prev, newNote]);
-                          // You can add a toast notification here if you have a toast system
-                        }}>
-                          <Download className="h-3.5 w-3.5 mr-2" />
-                          <span>Save as note</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className="text-red-500 dark:text-red-400"
-                          onClick={() => {
-                            // Delete this message
-                            setMessages(prev => prev.filter(m => m.id !== message.id));
-                          }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-2" />
-                          <span>Delete</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+              ))}
+              
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-white dark:bg-gray-800 border rounded-lg px-4 py-2 shadow-sm">
+                    <div className="flex space-x-2">
+                      <div className="h-2 w-2 rounded-full bg-gray-400 animate-pulse"></div>
+                      <div className="h-2 w-2 rounded-full bg-gray-400 animate-pulse delay-75"></div>
+                      <div className="h-2 w-2 rounded-full bg-gray-400 animate-pulse delay-150"></div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
-          
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-white dark:bg-gray-800 border rounded-lg px-4 py-2 shadow-sm">
-                <div className="flex space-x-2">
-                  <div className="h-2 w-2 rounded-full bg-gray-400 animate-pulse"></div>
-                  <div className="h-2 w-2 rounded-full bg-gray-400 animate-pulse delay-75"></div>
-                  <div className="h-2 w-2 rounded-full bg-gray-400 animate-pulse delay-150"></div>
-                </div>
-              </div>
-            </div>
+              )}
+            </>
           )}
           
           <div ref={messagesEndRef} />
@@ -624,7 +762,7 @@ export function AIAssistantChat({
                     ))
                 ) : (
                   <div className="text-sm text-gray-500 italic text-center mt-12">
-                    No visuals yet. They'll appear here when generated. Use !IMAGE[prompt] syntax in your messages to generate images.
+                    No visuals yet. They&apos;ll appear here when generated. Use !IMAGE[prompt] syntax in your messages to generate images.
                   </div>
                 )}
               </TabsContent>
@@ -663,7 +801,7 @@ export function AIAssistantChat({
                     ))
                 ) : (
                   <div className="text-sm text-gray-500 italic text-center mt-12">
-                    No data or charts yet. They'll appear here when generated.
+                    No data or charts yet. They&apos;ll appear here when generated.
                   </div>
                 )}
               </TabsContent>
@@ -684,7 +822,7 @@ export function AIAssistantChat({
                     ))
                 ) : (
                   <div className="text-sm text-gray-500 italic text-center mt-12">
-                    No research summaries yet. They'll appear here when generated.
+                    No research summaries yet. They&apos;ll appear here when generated.
                   </div>
                 )}
               </TabsContent>
@@ -701,7 +839,7 @@ export function AIAssistantChat({
                     ))
                 ) : (
                   <div className="text-sm text-gray-500 italic text-center mt-12">
-                    No notes yet. They'll appear here when saved.
+                    No notes yet. They&apos;ll appear here when saved.
                   </div>
                 )}
               </TabsContent>

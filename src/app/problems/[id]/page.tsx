@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/app/lib/supabase';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import React from 'react';
 
 // Fallback mock data in case the problem is not found in the database
@@ -15,9 +15,9 @@ const mockProblems = [
     id: '1',
     title: 'Solar Panel Optimization for Extreme Climates',
     description: 'Design a solar panel system that can operate efficiently in extreme temperature conditions ranging from -40°C to +60°C.',
-    category: 'Engineering',
+    category: ['Engineering'],
     difficulty: 3,
-    created_at: new Date('2023-06-15'),
+    created_at: new Date('2023-06-15').toISOString(),
     detailed_description: `
 ## Background
 Solar panels are a critical renewable energy technology, but their efficiency is significantly affected by temperature. In extreme climates, both very cold and very hot temperatures can reduce performance and durability.
@@ -46,18 +46,18 @@ Design a solar panel system that can:
     id: '2',
     title: 'Financial Model for Sustainable Urban Development',
     description: 'Create a financial model that evaluates the economic viability of converting an abandoned industrial area into a sustainable urban community.',
-    category: 'Finance',
+    category: ['Finance'],
     difficulty: 4,
-    created_at: new Date('2023-07-22'),
+    created_at: new Date('2023-07-22').toISOString(),
     detailed_description: 'Full description for problem 2...',
   },
   {
     id: '3',
     title: 'Spacecraft Docking System Simulation',
     description: 'Develop a physics-based simulation of a spacecraft docking system that accounts for microgravity and orbital mechanics.',
-    category: 'Space',
+    category: ['Space'],
     difficulty: 5,
-    created_at: new Date('2023-08-10'),
+    created_at: new Date('2023-08-10').toISOString(),
     detailed_description: 'Full description for problem 3...',
   },
 ];
@@ -123,10 +123,13 @@ function formatDate(dateString: string) {
 export default function ProblemPage() {
   const params = useParams();
   const problemId = params.id as string;
+  const router = useRouter();
   
   const [problem, setProblem] = useState<Problem | null>(null);
   const [loading, setLoading] = useState(true);
   const [relatedProblems, setRelatedProblems] = useState<Problem[]>([]);
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const [existingSolution, setExistingSolution] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProblem = async () => {
@@ -143,9 +146,24 @@ export default function ProblemPage() {
           console.error('Error fetching problem:', error);
           // Use mock data as fallback
           const mockProblem = mockProblems.find(p => p.id === problemId);
-          setProblem(mockProblem as any || null);
+          setProblem(mockProblem || null);
         } else {
           setProblem(data);
+
+          // Check if user already has a solution for this problem
+          const { data: userData } = await supabase.auth.getUser();
+          if (userData?.user) {
+            const { data: solutionData } = await supabase
+              .from('solutions')
+              .select('id')
+              .eq('problem_id', problemId)
+              .eq('user_id', userData.user.id)
+              .single();
+            
+            if (solutionData) {
+              setExistingSolution(solutionData.id);
+            }
+          }
 
           // Fetch related problems by category
           if (data && data.category && data.category.length > 0) {
@@ -164,7 +182,7 @@ export default function ProblemPage() {
               setRelatedProblems(
                 mockProblems
                   .filter(p => p.id !== problemId)
-                  .slice(0, 2) as any
+                  .slice(0, 2)
               );
             }
           }
@@ -173,7 +191,7 @@ export default function ProblemPage() {
         console.error('Error in fetching problem:', error);
         // Use mock data as fallback
         const mockProblem = mockProblems.find(p => p.id === problemId);
-        setProblem(mockProblem as any || null);
+        setProblem(mockProblem || null);
       } finally {
         setLoading(false);
       }
@@ -181,6 +199,57 @@ export default function ProblemPage() {
 
     fetchProblem();
   }, [problemId]);
+
+  // Function to unlock and start solving
+  const handleUnlockSolving = async () => {
+    try {
+      setIsUnlocking(true);
+      
+      // Get the current user
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !userData?.user) {
+        console.error('User not authenticated:', userError);
+        // Redirect to login
+        router.push('/auth/login?redirect=/problems/' + problemId);
+        return;
+      }
+      
+      // Check if a solution already exists
+      if (existingSolution) {
+        // If solution exists, redirect to it
+        router.push(`/problems/${problemId}/solve`);
+        return;
+      }
+      
+      // Create a new solution entry
+      const { error: solutionError } = await supabase
+        .from('solutions')
+        .insert({
+          problem_id: problemId,
+          user_id: userData.user.id,
+          stage: 'draft',
+          is_public: false
+        })
+        .select('id')
+        .single();
+      
+      if (solutionError) {
+        console.error('Error creating solution:', solutionError);
+        alert('Failed to create solution. Please try again.');
+        setIsUnlocking(false);
+        return;
+      }
+      
+      // Redirect to solve page
+      router.push(`/problems/${problemId}/solve`);
+      
+    } catch (error) {
+      console.error('Error unlocking problem:', error);
+      alert('An error occurred. Please try again.');
+      setIsUnlocking(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -195,7 +264,7 @@ export default function ProblemPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-4">Problem not found</h1>
-        <p>The problem you're looking for doesn't exist.</p>
+        <p>The problem you&apos;re looking for doesn&apos;t exist.</p>
         <Button asChild className="mt-4">
           <Link href="/problems">Back to Problems</Link>
         </Button>
@@ -240,8 +309,24 @@ export default function ProblemPage() {
           <p className="text-lg text-gray-700 dark:text-gray-300">{problem.description}</p>
         </div>
         <div className="md:w-64 shrink-0">
-          <Button asChild className="w-full mb-4">
-            <Link href={`/problems/${problem.id}/solve`}>Start Solving</Link>
+          <Button 
+            asChild={!isUnlocking && existingSolution !== null}
+            className="w-full mb-4"
+            disabled={isUnlocking}
+            onClick={existingSolution === null ? handleUnlockSolving : undefined}
+          >
+            {existingSolution ? (
+              <Link href={`/problems/${problem.id}/solve`}>Continue Solving</Link>
+            ) : (
+              isUnlocking ? (
+                <span className="flex items-center justify-center">
+                  <span className="mr-2 h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                  Unlocking...
+                </span>
+              ) : (
+                <span>Unlock Solving</span>
+              )
+            )}
           </Button>
           <Button variant="outline" className="w-full mb-4">Save for Later</Button>
           <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 mt-4">

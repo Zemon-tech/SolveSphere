@@ -41,9 +41,10 @@ interface Tab {
 
 interface SolutionWorkspaceProps {
   problemId: string;
-  problem: Problem; // Use the proper Problem type
+  problem: Problem;
   backUrl: string;
   children?: ReactNode;
+  solutionId: string;
 }
 
 // Props for children with accumulated content
@@ -51,9 +52,10 @@ interface ChildWithAccumulatedContentProps {
   accumulatedContent: ContentItem[];
   setAccumulatedContent: React.Dispatch<React.SetStateAction<ContentItem[]>>;
   problemId: string;
+  solutionId: string;
 }
 
-export function SolutionWorkspace({ problemId, problem, backUrl, children }: SolutionWorkspaceProps) {
+export function SolutionWorkspace({ problemId, problem, backUrl, children, solutionId }: SolutionWorkspaceProps) {
   const [activeSection, setActiveSection] = useState<string>('ai-assistant');
   const [minimizedProblem, setMinimizedProblem] = useState<boolean>(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
@@ -76,7 +78,8 @@ export function SolutionWorkspace({ problemId, problem, backUrl, children }: Sol
     ? React.cloneElement(children, {
         accumulatedContent,
         setAccumulatedContent,
-        problemId
+        problemId,
+        solutionId
       } as ChildWithAccumulatedContentProps) 
     : children;
   

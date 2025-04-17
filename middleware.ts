@@ -7,6 +7,8 @@ const protectedRoutes = [
   '/problems/create',
   '/solutions/create',
   '/profile',
+  '/problems/[id]/solve',
+  '/api/solutions'
 ];
 
 // Define the routes that should redirect to dashboard if user is already authenticated
