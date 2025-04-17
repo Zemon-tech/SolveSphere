@@ -3,14 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -72,6 +64,7 @@ export default function AdminProblemsPage() {
     difficulty: 1,
     detailed_description: '',
   });
+  const [editingProblem, setEditingProblem] = useState<Problem | null>(null);
   const [categoryInput, setCategoryInput] = useState('');
   const { user, isLoading } = useSupabase();
   const router = useRouter();
@@ -181,6 +174,65 @@ export default function AdminProblemsPage() {
     }
   };
 
+  const handleEditClick = (problem: Problem) => {
+    setEditingProblem(problem);
+    setNewProblem({
+      title: problem.title,
+      description: problem.description,
+      category: Array.isArray(problem.category) ? problem.category : [problem.category],
+      difficulty: problem.difficulty,
+      detailed_description: problem.detailed_description || '',
+    });
+  };
+
+  const handleUpdateProblem = async () => {
+    if (!editingProblem) return;
+
+    try {
+      // Clean up empty categories
+      const cleanedCategories = newProblem.category.filter(cat => cat.trim() !== '');
+      
+      // Ensure we always have at least one category - use "General" as default if none provided
+      const categoriesToSave = cleanedCategories.length > 0 ? cleanedCategories : ["General"];
+      
+      const { error } = await supabase
+        .from('problems')
+        .update({
+          title: newProblem.title,
+          description: newProblem.description,
+          category: categoriesToSave,
+          difficulty: newProblem.difficulty,
+          detailed_description: newProblem.detailed_description,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingProblem.id);
+
+      if (error) {
+        console.error('Error updating problem:', error);
+        throw error;
+      }
+      
+      // Show success toast
+      toast.success('Problem updated successfully!');
+      
+      // Reset form and refresh problems
+      setEditingProblem(null);
+      setNewProblem({
+        title: '',
+        description: '',
+        category: [''],
+        difficulty: 1,
+        detailed_description: '',
+      });
+      setCategoryInput('');
+      
+      fetchProblems();
+    } catch (error) {
+      console.error('Error updating problem:', error);
+      toast.error('Failed to update problem. Please try again.');
+    }
+  };
+
   // Function to format date
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -239,15 +291,15 @@ export default function AdminProblemsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Problem Management</h1>
-        <Dialog>
+        <Dialog open={!!editingProblem} onOpenChange={(open) => !open && setEditingProblem(null)}>
           <DialogTrigger asChild>
             <Button>Add Problem</Button>
           </DialogTrigger>
           <DialogContent className="max-w-[90vw] h-[90vh] flex flex-col">
             <DialogHeader>
-              <DialogTitle className="text-2xl">Add New Problem</DialogTitle>
+              <DialogTitle className="text-2xl">{editingProblem ? 'Edit Problem' : 'Add New Problem'}</DialogTitle>
               <DialogDescription>
-                Fill out the form below to create a new problem for users to solve.
+                {editingProblem ? 'Update the problem details below.' : 'Fill out the form below to create a new problem for users to solve.'}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-6 py-4 overflow-y-auto flex-grow">
@@ -345,7 +397,9 @@ export default function AdminProblemsPage() {
               </div>
             </div>
             <div className="flex justify-end mt-auto pt-4 border-t">
-              <Button onClick={handleAddProblem} size="lg">Save Problem</Button>
+              <Button onClick={editingProblem ? handleUpdateProblem : handleAddProblem} size="lg">
+                {editingProblem ? 'Update Problem' : 'Save Problem'}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -379,7 +433,7 @@ export default function AdminProblemsPage() {
           {problems.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-xl text-gray-500">No problems found</p>
-              <p className="text-gray-400 mt-2">Click 'Add Problem' to create your first problem challenge</p>
+              <p className="text-gray-400 mt-2">Click &apos;Add Problem&apos; to create your first problem challenge</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -425,7 +479,12 @@ export default function AdminProblemsPage() {
                   </CardContent>
                   <CardFooter className="border-t pt-4 mt-auto">
                     <div className="flex w-full gap-2">
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1" 
+                        onClick={() => handleEditClick(problem)}
+                      >
                         <Edit size={16} className="mr-2" /> Edit
                       </Button>
                       <Button 

@@ -74,7 +74,7 @@ export default function SolveProblemPage() {
     );
   }
 
-  // Show error state
+  // Show error statetable is already made is supabase and u need to 
   if (error || !problem) {
     return (
       <div className="h-screen flex flex-col items-center justify-center">
